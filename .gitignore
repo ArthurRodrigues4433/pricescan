@@ -1,0 +1,20 @@
+# Ambiente virtual
+venv/
+
+# Arquivos de cache do Python
+__pycache__/
+*.pyc
+
+# Banco de dados local
+*.sqlite3
+db.sqlite3
+
+# Uploads de mídia
+media/
+
+# Configurações do VSCode
+.vscode/
+
+# Arquivos do sistema
+.DS_Store
+Thumbs.db

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Minha Feira</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        img { max-width: 80px; max-height: 80px; }
+    </style>
+</head>
+<body>
+    <h1>Minha Feira</h1>
+    <table>
+        <tr>
+            <th>Foto</th>
+            <th>Produto</th>
+            <th>Qtde</th>
+            <th>Unit</th>
+            <th>Total</th>
+        </tr>
+        {% for item in itens %}
+        <tr>
+            <td>
+                {% if item.foto %}
+                    <img src="{{ item.foto.url }}" alt="{{ item.nome }}">
+                {% else %}
+                    Sem foto
+                {% endif %}
+            </td>
+            <td>{{ item.nome }}</td>
+            <td>{{ item.quantidade }}</td>
+            <td>R$ {{ item.preco_unitario }}</td>
+            <td>R$ {{ item.preco_total|floatformat:2 }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5">Nenhum produto adicionado.</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <h2>Total da Feira: R$ {{ total_geral|floatformat:2 }}</h2>
+    <a href="{% url 'adicionar_produto' %}">Adicionar novo produto</a>
+</body>
+</html>
