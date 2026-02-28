@@ -2,11 +2,7 @@
 <html>
 <head>
     <title>Minha Feira</title>
-    <style>
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-        img { max-width: 80px; max-height: 80px; }
-    </style>
+    <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
     <h1>Minha Feira</h1>
@@ -24,10 +20,10 @@
                 {% if item.foto %}
                     <img src="{{ item.foto.url }}" alt="{{ item.nome }}">
                 {% else %}
-                    Sem foto
+                    <span style="color: #888; font-size: 0.95em;">Sem foto</span>
                 {% endif %}
             </td>
-            <td>{{ item.nome }}</td>
+            <td><strong>{{ item.nome }}</strong></td>
             <td>{{ item.quantidade }}</td>
             <td>R$ {{ item.preco_unitario }}</td>
             <td>R$ {{ item.preco_total|floatformat:2 }}</td>
