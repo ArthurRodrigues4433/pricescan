@@ -1,60 +1,210 @@
-<!DOCTYPE html>
-<html>
+﻿<!DOCTYPE html>
+<html lang="pt-br">
 <head>
-    <title>Minha Feira</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Feira #{{ compra.id }} â€” PriceScan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <style>
+        @media (max-width: 767.98px) {
+            html, body { height: 100%; overflow: hidden; }
+            .lc-page { display: flex; flex-direction: column; height: 100%; }
+            .lc-body { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+            .lc-static { flex-shrink: 0; }
+            .lc-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+            .lc-footer { flex-shrink: 0; background: #fff; border-top: 1px solid #dee2e6; }
+        }
+    </style>
 </head>
-<body>
-    <h1>Minha Feira</h1>
-    <p>Status da compra: <strong>{{ compra.get_status_display }}</strong></p>
-    <table>
-        <tr>
-            <th>Foto</th>
-            <th>Produto</th>
-            <th>Qtde</th>
-            <th>Unit</th>
-            <th>Total</th>
-            <th>Ações</th>
-        </tr>
-        {% for item in itens %}
-        <tr>
-            <td>
-                {% if item.foto %}
-                    <img src="{{ item.foto.url }}" alt="{{ item.nome }}">
-                {% else %}
-                    <span style="color: #888; font-size: 0.95em;">Sem foto</span>
-                {% endif %}
-            </td>
-            <td><strong>{{ item.nome }}</strong></td>
-            <td>{{ item.quantidade }}</td>
-            <td>R$ {{ item.preco_unitario }}</td>
-            <td>R$ {{ item.preco_total|floatformat:2 }}</td>
-            <td>
+<body class="bg-white">
+
+<div class="lc-page">
+
+    <!-- Navbar mÃ­nima -->
+    <nav class="navbar border-bottom bg-white px-3 px-md-4" style="height:56px;">
+        <a class="navbar-brand fw-bold text-dark fs-6" href="{% url 'src:painel_compras' %}">PriceScan</a>
+        <div class="ms-auto d-flex align-items-center gap-3">
+            <span class="text-muted small d-none d-sm-inline">{{ request.user.username }}</span>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Sair</button>
+            </form>
+        </div>
+    </nav>
+
+    <main class="container lc-body py-md-5">
+
+        <!-- EstÃ¡tico: cabeÃ§alho + resumo -->
+        <div class="lc-static pt-4 pt-md-0">
+
+            <!-- Contexto + cabeÃ§alho -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 mb-4 mb-md-5">
+                <div>
+                    <p class="mb-1">
+                        <a href="{% url 'src:painel_compras' %}" class="text-muted text-decoration-none small"> Minhas feiras</a>
+                    </p>
+                    <h1 class="h4 fw-semibold text-dark mb-1">
+                        Feira #{{ compra.id }}
+                        {% if compra.status == 'ativa' %}
+                        <span class="badge text-bg-success ms-1" style="font-size:.65rem; vertical-align:middle;">Ativa</span>
+                        {% else %}
+                        <span class="badge text-bg-secondary ms-1" style="font-size:.65rem; vertical-align:middle;">Finalizada</span>
+                        {% endif %}
+                    </h1>
+                    <p class="text-muted small mb-0">{{ compra.data|date:"d/m/Y \Ã \s H:i" }}</p>
+                </div>
                 {% if compra.status == 'ativa' %}
-                <form method="post" action="{% url 'remover_item' compra.id item.id %}">
-                    {% csrf_token %}
-                    <button type="submit">Remover</button>
-                </form>
-                {% else %}
-                -
+                <div class="d-grid d-md-block">
+                    <a href="{% url 'src:adicionar_produto' compra.id %}" class="btn btn-dark px-4">+ Adicionar produto</a>
+                </div>
                 {% endif %}
-            </td>
-        </tr>
-        {% empty %}
-        <tr>
-            <td colspan="6">Nenhum produto adicionado.</td>
-        </tr>
-        {% endfor %}
-    </table>
-    <h2>Total da Feira: R$ {{ total_geral|floatformat:2 }}</h2>
+            </div>
+
+            <!-- Resumo em linha -->
+            <div class="d-flex flex-wrap gap-4 pb-4 mb-4 border-bottom">
+                <div>
+                    <p class="text-muted small mb-0">Produtos</p>
+                    <p class="fw-semibold mb-0">{{ itens.count }}</p>
+                </div>
+                <div>
+                    <p class="text-muted small mb-0">Total estimado</p>
+                    <p class="fw-bold mb-0">R$ {{ total_geral|floatformat:2 }}</p>
+                </div>
+            </div>
+
+        </div><!-- /lc-static -->
+
+        <!-- RolÃ¡vel: lista de itens -->
+        <div class="lc-scroll">
+
+            <!-- Mobile: lista de itens -->
+            <div class="d-md-none">
+                {% for item in itens %}
+                <div class="d-flex gap-3 border-bottom py-3 align-items-center">
+                    <div class="flex-shrink-0">
+                        {% if item.foto %}
+                            <img src="{{ item.foto.url }}" alt="{{ item.nome }}" class="rounded" style="width:48px; height:48px; object-fit:cover;">
+                        {% else %}
+                            <div class="rounded bg-light border d-flex align-items-center justify-content-center text-muted" style="width:48px; height:48px; font-size:.65rem;">Foto</div>
+                        {% endif %}
+                    </div>
+                    <div class="flex-grow-1" style="min-width:0;">
+                        <div class="fw-semibold text-truncate">{{ item.nome }}</div>
+                        <div class="text-muted small">{{ item.quantidade }} Un/Kg — R$ {{ item.preco_unitario }}</div>
+                    </div>
+                    <div class="text-end flex-shrink-0">
+                        <div class="fw-semibold">R$ {{ item.preco_total|floatformat:2 }}</div>
+                        {% if compra.status == 'ativa' %}
+                        <form method="post" action="{% url 'src:remover_item' compra.id item.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-link text-danger p-0 mt-1" style="font-size:.75rem;">Remover</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-5 text-muted">
+                    <p class="mb-3">Nenhum produto adicionado ainda.</p>
+                    {% if compra.status == 'ativa' %}
+                    <a href="{% url 'src:adicionar_produto' compra.id %}" class="btn btn-dark w-100">+ Adicionar primeiro produto</a>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Desktop: tabela -->
+            <div class="d-none d-md-block">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="border-bottom">
+                            <tr class="text-muted small text-uppercase" style="font-size:.72rem; letter-spacing:.04em;">
+                                <th class="fw-normal pb-2">Foto</th>
+                                <th class="fw-normal pb-2">Produto</th>
+                                <th class="fw-normal pb-2">Qtde</th>
+                                <th class="fw-normal pb-2">UnitÃ¡rio</th>
+                                <th class="fw-normal pb-2 text-end">Total</th>
+                                {% if compra.status == 'ativa' %}<th class="fw-normal pb-2"></th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in itens %}
+                            <tr>
+                                <td>
+                                    {% if item.foto %}
+                                        <img src="{{ item.foto.url }}" alt="{{ item.nome }}" class="rounded" style="width:44px; height:44px; object-fit:cover;">
+                                    {% else %}
+                                        <div class="rounded bg-light border d-flex align-items-center justify-content-center text-muted" style="width:44px; height:44px; font-size:.65rem;">Foto</div>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-semibold">{{ item.nome }}</td>
+                                <td class="text-muted">{{ item.quantidade }}</td>
+                                <td class="text-muted">R$ {{ item.preco_unitario }}</td>
+                                <td class="text-end fw-semibold">R$ {{ item.preco_total|floatformat:2 }}</td>
+                                {% if compra.status == 'ativa' %}
+                                <td class="text-end">
+                                    <form method="post" action="{% url 'src:remover_item' compra.id item.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-link text-danger text-decoration-none p-0">Remover</button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <p class="mb-3">Nenhum produto adicionado ainda.</p>
+                                    {% if compra.status == 'ativa' %}
+                                    <a href="{% url 'src:adicionar_produto' compra.id %}" class="btn btn-dark">+ Adicionar primeiro produto</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        {% if itens.count > 0 %}
+                        <tfoot class="border-top">
+                            <tr>
+                                <td colspan="{% if compra.status == 'ativa' %}4{% else %}4{% endif %}" class="text-end text-muted small pt-3">Total geral</td>
+                                <td class="text-end fw-bold pt-3">R$ {{ total_geral|floatformat:2 }}</td>
+                                {% if compra.status == 'ativa' %}<td></td>{% endif %}
+                            </tr>
+                        </tfoot>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Desktop: AÃ§Ã£o final -->
+            {% if compra.status == 'ativa' %}
+            <div class="d-none d-md-block mt-4 pt-2 border-top">
+                <form method="post" action="{% url 'src:finalizar_compra' compra.id %}">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-end">
+                        <button type="submit" class="btn btn-outline-dark">Finalizar feira</button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+
+        </div><!-- /lc-scroll -->
+
+    </main>
+
+    <!-- Mobile: total + botão Finalizar (rodapé fixo) -->
     {% if compra.status == 'ativa' %}
-    <a href="{% url 'adicionar_produto' compra.id %}">Adicionar novo produto</a>
-    <form method="post" action="{% url 'finalizar_compra' compra.id %}" style="margin-top: 12px;">
-        {% csrf_token %}
-        <button type="submit">Finalizar compra</button>
-    </form>
-    {% else %}
-    <a href="{% url 'criar_compra' %}">Iniciar nova compra</a>
+    <div class="lc-footer d-md-none px-3 pt-2 pb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small">Total geral</span>
+            <span class="fw-bold">R$ {{ total_geral|floatformat:2 }}</span>
+        </div>
+        <form method="post" action="{% url 'src:finalizar_compra' compra.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-dark w-100">Finalizar feira</button>
+        </form>
+    </div>
     {% endif %}
+
+</div><!-- /lc-page -->
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
 </html>
