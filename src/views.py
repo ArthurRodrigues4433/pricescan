@@ -1,9 +1,28 @@
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import (
+    UserCreationForm,
+)  # noqa: F401 (mantido por compatibilidade)
 from django.contrib import messages
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import render, redirect, get_object_or_404
-from .forms import ItemCompraForm
+from .forms import ItemCompraForm, RegisterForm
 from .models import Compra, ItemCompra
+
+
+def register(request):
+    if request.user.is_authenticated:
+        return redirect("src:painel_compras")
+    if request.method == "POST":
+        form = RegisterForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(
+                request, "Conta criada com sucesso! Faça login para continuar."
+            )
+            return redirect("login")
+    else:
+        form = RegisterForm()
+    return render(request, "registration/register.html", {"form": form})
 
 
 @login_required
@@ -17,7 +36,7 @@ def criar_compra(request):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
     nova_compra = Compra.objects.create(usuario=request.user, status="ativa")
-    return redirect("src:lista_compra", compra_id=nova_compra.id)
+    return redirect("src:lista_compra", compra_id=nova_compra.id)  # type: ignore
 
 
 @login_required
@@ -44,7 +63,7 @@ def adicionar_produto(request, compra_id):
 @login_required
 def lista_compra(request, compra_id):
     compra = get_object_or_404(Compra, id=compra_id, usuario=request.user)
-    itens = compra.itens.all()
+    itens = compra.itens.all()  # type: ignore
     total_geral = compra.total()
     return render(
         request,

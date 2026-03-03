@@ -21,17 +21,25 @@
 
                 {% if form.errors %}
                 <div class="alert alert-danger py-2 small border-0 bg-danger bg-opacity-10 text-danger">
-                    Usuário ou senha incorretos. Tente novamente.
+                    E-mail ou senha incorretos. Tente novamente.
                 </div>
+                {% endif %}
+
+                {% if messages %}
+                {% for message in messages %}
+                <div class="alert py-2 small border-0 bg-success bg-opacity-10 text-success">
+                    {{ message }}
+                </div>
+                {% endfor %}
                 {% endif %}
 
                 <form method="post">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label for="id_username" class="form-label text-muted small">Usuário</label>
-                        <input type="text" name="username" id="id_username"
+                        <label for="id_username" class="form-label text-muted small">E-mail</label>
+                        <input type="email" name="username" id="id_username"
                             class="form-control"
-                            placeholder="Seu usuário"
+                            placeholder="seu@email.com"
                             autofocus required>
                     </div>
                     <div class="mb-4">
@@ -45,6 +53,11 @@
                         <button type="submit" class="btn btn-dark">Entrar</button>
                     </div>
                 </form>
+
+                <hr class="my-4">
+                <div class="d-grid">
+                    <a href="{% url 'src:register' %}" class="btn btn-outline-dark">Criar nova conta</a>
+                </div>
 
             </div>
         </div>

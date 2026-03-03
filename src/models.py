@@ -9,7 +9,7 @@ class Compra(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ativa')
 
     def total(self):
-        return sum(item.preco_total() for item in self.itens.all())
+        return sum(item.preco_total() for item in self.itens.all()) #type: ignore
 
 
 class ItemCompra(models.Model):

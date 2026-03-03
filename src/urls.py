@@ -7,6 +7,7 @@ from .views import (
     remover_item,
     finalizar_compra,
     excluir_compra,
+    register,
 )
 
 app_name = "src"
@@ -29,4 +30,5 @@ urlpatterns = [
         "compras/<int:compra_id>/finalizar/", finalizar_compra, name="finalizar_compra"
     ),
     path("compras/<int:compra_id>/excluir/", excluir_compra, name="excluir_compra"),
+    path("accounts/register/", register, name="register"),
 ]

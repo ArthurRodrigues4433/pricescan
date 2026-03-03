@@ -22,7 +22,7 @@ Sistema web para controle de compras de feira. Permite criar feiras, adicionar p
 | Backend    | Django 4+                |
 | Banco      | SQLite (desenvolvimento) |
 | Frontend   | Bootstrap 5.3.3 (CDN)    |
-| Imagens    | Pillow + ImageField       |
+| Imagens    | Pillow + ImageField      |
 | Auth       | Django built-in auth     |
 
 ## Modelos
@@ -45,15 +45,15 @@ ItemCompra
 
 ## Rotas
 
-| Método | URL                                          | View               | Descrição                        |
-|--------|----------------------------------------------|--------------------|----------------------------------|
-| GET    | `/`                                          | painel_compras     | Lista todas as feiras do usuário |
-| POST   | `/compras/nova/`                             | criar_compra       | Cria nova feira                  |
-| GET/POST | `/compras/<id>/adicionar/`               | adicionar_produto  | Formulário de item               |
-| GET    | `/compras/<id>/`                             | lista_compra       | Detalhe de uma feira             |
-| POST   | `/compras/<id>/remover-item/<item_id>/`      | remover_item       | Remove um item                   |
-| POST   | `/compras/<id>/finalizar/`                   | finalizar_compra   | Finaliza a feira                 |
-| POST   | `/compras/<id>/excluir/`                     | excluir_compra     | Exclui feira finalizada          |
+| Método   | URL                                          | View               | Descrição                        |
+|----------|----------------------------------------------|--------------------|----------------------------------|
+| GET      | `/`                                          | painel_compras     | Lista todas as feiras do usuário |
+| POST     | `/compras/nova/`                             | criar_compra       | Cria nova feira                  |
+| GET/POST | `/compras/<id>/adicionar/`                   | adicionar_produto  | Formulário de item               |
+| GET      | `/compras/<id>/`                             | lista_compra       | Detalhe de uma feira             |
+| POST     | `/compras/<id>/remover-item/<item_id>/`      | remover_item       | Remove um item                   |
+| POST     | `/compras/<id>/finalizar/`                   | finalizar_compra   | Finaliza a feira                 |
+| POST     | `/compras/<id>/excluir/`                     | excluir_compra     | Exclui feira finalizada          |
 
 ## Estrutura
 
