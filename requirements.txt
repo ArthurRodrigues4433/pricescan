@@ -1,0 +1,5 @@
+Django==6.0.2
+Pillow==12.1.1
+pytesseract==0.3.13
+opencv-python==4.13.0.92
+python-dotenv==1.2.2

@@ -90,7 +90,13 @@
                     </div>
                     <div class="flex-grow-1" style="min-width:0;">
                         <div class="fw-semibold text-truncate">{{ item.nome }}</div>
-                        <div class="text-muted small">{{ item.quantidade }} Un/Kg — R$ {{ item.preco_unitario }}</div>
+                        <div class="text-muted small">
+                            {{ item.quantidade }} Un/Kg — R$ {{ item.preco_unitario }}
+                            {% if item.peso_volume %}<span class="ms-1 text-muted">· {{ item.peso_volume }}</span>{% endif %}
+                            {% if item.preco_atacado and item.qtd_min_atacado %}
+                            <span class="ms-1 badge text-bg-success" style="font-size:.6rem;">Atacado</span>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="text-end flex-shrink-0">
                         <div class="fw-semibold">R$ {{ item.preco_total|floatformat:2 }}</div>
@@ -120,8 +126,10 @@
                             <tr class="text-muted small text-uppercase" style="font-size:.72rem; letter-spacing:.04em;">
                                 <th class="fw-normal pb-2">Foto</th>
                                 <th class="fw-normal pb-2">Produto</th>
+                                <th class="fw-normal pb-2">Peso/Vol.</th>
                                 <th class="fw-normal pb-2">Qtde</th>
-                                <th class="fw-normal pb-2">UnitÃ¡rio</th>
+                                <th class="fw-normal pb-2">Unitário</th>
+                                <th class="fw-normal pb-2">Atacado</th>
                                 <th class="fw-normal pb-2 text-end">Total</th>
                                 {% if compra.status == 'ativa' %}<th class="fw-normal pb-2"></th>{% endif %}
                             </tr>
@@ -137,8 +145,17 @@
                                     {% endif %}
                                 </td>
                                 <td class="fw-semibold">{{ item.nome }}</td>
+                                <td class="text-muted">{{ item.peso_volume|default:"—" }}</td>
                                 <td class="text-muted">{{ item.quantidade }}</td>
                                 <td class="text-muted">R$ {{ item.preco_unitario }}</td>
+                                <td class="text-muted">
+                                    {% if item.preco_atacado and item.qtd_min_atacado %}
+                                        <span class="text-success">R$ {{ item.preco_atacado }}</span>
+                                        <span class="text-muted" style="font-size:.75rem">&ge;{{ item.qtd_min_atacado }}un</span>
+                                    {% else %}
+                                    —
+                                    {% endif %}
+                                </td>
                                 <td class="text-end fw-semibold">R$ {{ item.preco_total|floatformat:2 }}</td>
                                 {% if compra.status == 'ativa' %}
                                 <td class="text-end">
@@ -151,7 +168,7 @@
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
+                                <td colspan="{% if compra.status == 'ativa' %}8{% else %}7{% endif %}" class="text-center py-5 text-muted">
                                     <p class="mb-3">Nenhum produto adicionado ainda.</p>
                                     {% if compra.status == 'ativa' %}
                                     <a href="{% url 'src:adicionar_produto' compra.id %}" class="btn btn-dark">+ Adicionar primeiro produto</a>
@@ -163,7 +180,7 @@
                         {% if itens.count > 0 %}
                         <tfoot class="border-top">
                             <tr>
-                                <td colspan="{% if compra.status == 'ativa' %}4{% else %}4{% endif %}" class="text-end text-muted small pt-3">Total geral</td>
+                                <td colspan="{% if compra.status == 'ativa' %}6{% else %}6{% endif %}" class="text-end text-muted small pt-3">Total geral</td>
                                 <td class="text-end fw-bold pt-3">R$ {{ total_geral|floatformat:2 }}</td>
                                 {% if compra.status == 'ativa' %}<td></td>{% endif %}
                             </tr>

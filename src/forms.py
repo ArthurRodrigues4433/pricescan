@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
@@ -68,3 +70,77 @@ class ItemCompraForm(forms.ModelForm):
             raise forms.ValidationError("A quantidade deve ser maior que zero.")
 
         return quantidade
+
+
+# ---------------------------------------------------------------------------
+# Formulários do módulo OCR
+# ---------------------------------------------------------------------------
+
+
+class EscanearCartazForm(forms.Form):
+    foto = forms.ImageField(
+        label="Foto do cartaz",
+        widget=forms.ClearableFileInput(
+            attrs={"accept": "image/*", "capture": "environment"}
+        ),
+    )
+
+
+class ConfirmarProdutoForm(forms.Form):
+    """Etapa 1 — revisão dos dados extraídos pelo OCR."""
+
+    nome = forms.CharField(
+        max_length=200,
+        label="Nome do produto",
+        widget=forms.TextInput(attrs={"placeholder": "Ex: Arroz Tio João 5kg"}),
+    )
+    peso_volume = forms.CharField(
+        max_length=50,
+        required=False,
+        label="Peso / Volume",
+        widget=forms.TextInput(attrs={"placeholder": "Ex: 5kg, 500ml"}),
+    )
+    preco_unitario = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        label="Preço unitário (R$)",
+        widget=forms.NumberInput(attrs={"step": "0.01", "placeholder": "0,00"}),
+    )
+    preco_atacado = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        required=False,
+        label="Preço atacado (R$)",
+        widget=forms.NumberInput(
+            attrs={"step": "0.01", "placeholder": "0,00 (opcional)"}
+        ),
+    )
+    qtd_min_atacado = forms.IntegerField(
+        min_value=1,
+        required=False,
+        label="Qtd. mínima para atacado",
+        widget=forms.NumberInput(attrs={"placeholder": "Ex: 3 (opcional)"}),
+    )
+    # A imagem viaja como campo oculto (base64 não é prático; usamos o caminho
+    # temporário salvo na sessão — o campo abaixo só carrega o arquivo original).
+    foto = forms.ImageField(
+        label="Foto do cartaz",
+        required=False,
+        widget=forms.ClearableFileInput(attrs={"accept": "image/*"}),
+    )
+
+
+class InformarQuantidadeForm(forms.Form):
+    """Etapa 2 — somente a quantidade comprada."""
+
+    quantidade = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        label="Quantidade",
+        widget=forms.NumberInput(
+            attrs={"step": "0.01", "placeholder": "Ex: 2", "autofocus": True}
+        ),
+    )

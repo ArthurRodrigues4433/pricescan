@@ -42,14 +42,13 @@
                 {% endfor %}
                 {% endif %}
 
-                <!-- Formulário -->
-                <form method="post" enctype="multipart/form-data" novalidate>
-                    {% csrf_token %}
-                    {{ form.as_p }}
-                    <div class="d-grid mt-4">
-                        <button type="submit" class="btn btn-dark btn-lg">Salvar produto</button>
-                    </div>
-                </form>
+                <!-- Escanear cartaz -->
+                <div class="d-grid mt-2">
+                    <a href="{% url 'src:escanear_cartaz' compra.id %}" class="btn btn-dark btn-lg">
+                        📸 Escanear cartaz de preço
+                    </a>
+                </div>
+                <p class="text-center text-muted small mt-2 mb-0">Enquadre o cartaz e o sistema preencherá os dados automaticamente</p>
 
                 <!-- Links secundários -->
                 <div class="d-flex justify-content-center gap-4 mt-4">
@@ -61,13 +60,6 @@
         </div>
     </main>
 
-    <script>
-        document.querySelectorAll('form p').forEach(p => p.classList.add('mb-3'));
-        document.querySelectorAll('form input, form select, form textarea').forEach(f => {
-            f.classList.add(f.type === 'checkbox' || f.type === 'radio' ? 'form-check-input' : 'form-control');
-        });
-        document.querySelectorAll('form label').forEach(l => l.classList.add('form-label', 'fw-semibold', 'small'));
-    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
 </html>

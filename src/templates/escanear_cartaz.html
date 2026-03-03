@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Escanear Cartaz — PriceScan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css" rel="stylesheet">
+    <style>
+        #camera-wrap {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: .5rem;
+            overflow: hidden;
+            aspect-ratio: 4/3;
+        }
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        #guide-frame {
+            position: absolute;
+            top: 8%; left: 5%;
+            width: 90%; height: 84%;
+            border: 3px solid rgba(255,255,255,.9);
+            border-radius: .4rem;
+            box-sizing: border-box;
+            transition: border-color .3s;
+            pointer-events: none;
+            z-index: 2;
+        }
+        #guide-frame.ok   { border-color: #28a745; }
+        #guide-frame.fail { border-color: #dc3545; }
+        /* Máscara: 4 faixas escuras ao redor do quadro */
+        .cam-mask {
+            position: absolute; background: rgba(0,0,0,.55); z-index: 1; pointer-events: none;
+        }
+        #mask-top    { top:0;   left:0; right:0;  height:8%; }
+        #mask-bottom { top:92%; left:0; right:0;  bottom:0; }
+        #mask-left   { top:8%;  left:0; width:5%; height:84%; }
+        #mask-right  { top:8%;  right:0; width:5%; height:84%; }
+        #guide-frame::before, #guide-frame::after, #corner-bl, #corner-tr {
+            content: ''; position: absolute; width: 22px; height: 22px;
+        }
+        #guide-frame::before { top:-3px; left:-3px; border-top:4px solid currentColor; border-left:4px solid currentColor; border-radius:3px 0 0 0; }
+        #guide-frame::after  { bottom:-3px; right:-3px; border-bottom:4px solid currentColor; border-right:4px solid currentColor; border-radius:0 0 3px 0; }
+        #corner-bl { bottom:-3px; left:-3px; border-bottom:4px solid currentColor; border-left:4px solid currentColor; border-radius:0 0 0 3px; }
+        #corner-tr { top:-3px; right:-3px; border-top:4px solid currentColor; border-right:4px solid currentColor; border-radius:0 3px 0 0; }
+        #status-overlay {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            font-size: .78rem; padding: .2rem .8rem; border-radius: 2rem;
+            white-space: nowrap; background: rgba(0,0,0,.55); color: #fff; transition: background .3s;
+        }
+        #status-overlay.ok   { background: rgba(40,167,69,.85); }
+        #status-overlay.fail { background: rgba(220,53,69,.85); }
+    </style>
+</head>
+<body class="bg-white">
+
+    <nav class="navbar border-bottom bg-white px-3 px-md-4" style="height:56px;">
+        <a class="navbar-brand fw-bold text-dark fs-6" href="{% url 'src:painel_compras' %}">PriceScan</a>
+        <div class="ms-auto d-flex align-items-center gap-3">
+            <span class="text-muted small d-none d-sm-inline">{{ request.user.username }}</span>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Sair</button>
+            </form>
+        </div>
+    </nav>
+
+    <main class="container py-4 py-md-5">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+
+                <div class="mb-4">
+                    <p class="mb-1">
+                        <a href="{% url 'src:lista_compra' compra.id %}" class="text-muted text-decoration-none small">← Feira #{{ compra.id }}</a>
+                    </p>
+                    <h1 class="h4 fw-semibold text-dark mb-1">Escanear cartaz</h1>
+                    <p class="text-muted small mb-0">Enquadre o cartaz dentro do quadro. Quando ficar <strong class="text-success">verde</strong>, tire a foto.</p>
+                </div>
+
+                {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-danger alert-dismissible fade show py-2 small mb-4" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                </div>
+                {% endfor %}
+                {% endif %}
+
+                <!-- Viewfinder em tempo real -->
+                <div id="camera-section">
+                    <!-- Seletor de câmera -->
+                    <div class="mb-2" id="cam-selector-wrap" style="display:none;">
+                        <select id="cam-selector" class="form-select form-select-sm"></select>
+                    </div>
+                    <div id="camera-wrap" class="mb-3">
+                        <video id="video" autoplay playsinline muted></video>
+                        <!-- Máscaras ao redor do quadro -->
+                        <div class="cam-mask" id="mask-top"></div>
+                        <div class="cam-mask" id="mask-bottom"></div>
+                        <div class="cam-mask" id="mask-left"></div>
+                        <div class="cam-mask" id="mask-right"></div>
+                        <div id="guide-frame">
+                            <span id="corner-bl"></span>
+                            <span id="corner-tr"></span>
+                        </div>
+                        <div id="status-overlay">Aguardando câmera…</div>
+                    </div>
+                    <div id="checklist" class="small mb-3 text-muted"></div>
+                    <div class="d-grid mb-3">
+                        <button id="btn-capture" class="btn btn-success btn-lg" disabled>
+                            📸 Tirar foto
+                        </button>
+                    </div>
+                    <div class="text-center mb-2">
+                        <button type="button" class="btn btn-link btn-sm text-muted" onclick="document.getElementById('file-section').style.display='block'; this.style.display='none';">
+                            Ou enviar foto do dispositivo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Fallback sem HTTPS / sem permissão -->
+                <div id="no-camera-msg" class="alert alert-warning small mb-3" style="display:none;">
+                    ⚠️ Câmera não disponível (requer HTTPS). Use a opção abaixo.
+                </div>
+                <div id="file-section" style="display:none;">
+                    <!-- Seletor de arquivo -->
+                    <div id="file-picker-wrap">
+                        <label class="form-label fw-semibold small">Foto do cartaz</label>
+                        <input type="file" id="file-input" accept="image/*" class="form-control mb-2">
+                        <p class="text-muted small mb-0">Selecione a foto — depois recorte a área do cartaz.</p>
+                    </div>
+                    <!-- Editor de recorte (oculto até foto ser selecionada) -->
+                    <div id="crop-wrap" style="display:none;">
+                        <div class="mb-2" style="max-height:400px;overflow:hidden;border-radius:.4rem;background:#000;">
+                            <img id="crop-img" style="max-width:100%;display:block;">
+                        </div>
+                        <div class="d-flex gap-2 mb-3">
+                            <button type="button" id="btn-trocar" class="btn btn-sm btn-outline-secondary">Trocar foto</button>
+                            <button type="button" id="btn-enviar-crop" class="btn btn-dark flex-fill">Confirmar recorte e analisar →</button>
+                        </div>
+                    </div>
+                    <!-- Form oculto para envio do recorte -->
+                    <form method="post" enctype="multipart/form-data" id="crop-form" style="display:none;">
+                        {% csrf_token %}
+                        <input type="hidden" name="fonte" value="arquivo">
+                        <input type="file" name="foto" id="crop-file-input" accept="image/*">
+                    </form>
+                </div>
+
+                <!-- Form oculto usado pelo viewfinder para enviar o frame capturado -->
+                <form method="post" enctype="multipart/form-data" id="scan-form-camera" style="display:none;">
+                    {% csrf_token %}
+                    <input type="file" name="foto" id="captured-input" accept="image/*">
+                </form>
+
+                <canvas id="canvas" style="display:none;"></canvas>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+    (function () {
+        const video         = document.getElementById('video');
+        const canvas        = document.getElementById('canvas');
+        const guide         = document.getElementById('guide-frame');
+        const statusEl      = document.getElementById('status-overlay');
+        const checklistEl   = document.getElementById('checklist');
+        const btnCapture    = document.getElementById('btn-capture');
+        const capturedInput = document.getElementById('captured-input');
+        const formCamera    = document.getElementById('scan-form-camera');
+        const cameraSection = document.getElementById('camera-section');
+        const noCameraMsg   = document.getElementById('no-camera-msg');
+        const fileSection   = document.getElementById('file-section');
+        const ctx = canvas.getContext('2d');
+
+        const BRILHO_MIN  = 40;
+        const BRILHO_MAX  = 220;
+        const NITIDEZ_MIN = 60;
+
+        let stream      = null;
+        let timer       = null;
+        let qualidadeOk = false;
+
+        var camSelectorWrap = document.getElementById('cam-selector-wrap');
+        var camSelector     = document.getElementById('cam-selector');
+        var camerasEnumeradas = false;
+
+        async function enumerarCameras(deviceIdAtivo) {
+            if (camerasEnumeradas) return;
+            try {
+                var devices = await navigator.mediaDevices.enumerateDevices();
+                var cameras = devices.filter(function (d) { return d.kind === 'videoinput'; });
+                if (cameras.length > 1) {
+                    camSelector.innerHTML = cameras.map(function (d, i) {
+                        return '<option value="' + d.deviceId + '"' + (d.deviceId === deviceIdAtivo ? ' selected' : '') + '>'
+                             + (d.label || 'Câmera ' + (i + 1)) + '</option>';
+                    }).join('');
+                    camSelectorWrap.style.display = 'block';
+                    camSelector.addEventListener('change', function () {
+                        if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+                        clearInterval(timer);
+                        iniciarCamera(camSelector.value);
+                    });
+                }
+                camerasEnumeradas = true;
+            } catch (e) {}
+        }
+
+        async function iniciarCamera(deviceId) {
+            try {
+                var constraints = {
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 960 },
+                        facingMode: { ideal: 'environment' }
+                    },
+                    audio: false
+                };
+                if (deviceId) {
+                    constraints.video = { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 960 } };
+                }
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                var trackId = stream.getVideoTracks()[0] ? stream.getVideoTracks()[0].getSettings().deviceId : null;
+                video.srcObject = stream;
+                video.addEventListener('loadedmetadata', function () {
+                    timer = setInterval(analisarFrame, 100);
+                });
+                // Enumera câmeras só na primeira vez (após permissão, labels ficam disponíveis)
+                enumerarCameras(trackId || deviceId);
+            } catch (err) {
+                cameraSection.style.display = 'none';
+                noCameraMsg.style.display   = 'block';
+                fileSection.style.display   = 'block';
+            }
+        }
+
+        function analisarFrame() {
+            if (video.readyState < 2) return;
+            const w = video.videoWidth, h = video.videoHeight;
+            canvas.width = w; canvas.height = h;
+            ctx.drawImage(video, 0, 0, w, h);
+
+            const x0 = Math.floor(w * .05), y0 = Math.floor(h * .08);
+            const rw = Math.floor(w * .90), rh = Math.floor(h * .84);
+            const data = ctx.getImageData(x0, y0, rw, rh).data;
+
+            const erros = [];
+            const checks = [];
+
+            // --- Brilho ---
+            var soma = 0;
+            var total = data.length / 4;
+            for (var i = 0; i < data.length; i += 4)
+                soma += data[i] * .299 + data[i+1] * .587 + data[i+2] * .114;
+            var brilho = soma / total;
+
+            if (brilho < BRILHO_MIN) {
+                erros.push('Muito escuro — melhore a iluminação');
+                checks.push({ ok: false, msg: 'Iluminação: muito escuro' });
+            } else if (brilho > BRILHO_MAX) {
+                erros.push('Reflexo ou luz excessiva');
+                checks.push({ ok: false, msg: 'Iluminação: reflexo / muito claro' });
+            } else {
+                checks.push({ ok: true, msg: 'Iluminação OK' });
+            }
+
+            // --- Nitidez (variância de gradiente) ---
+            var gradSoma = 0, count = 0;
+            var step = 4;
+            for (var j = 0; j < data.length - 4 * step; j += 4 * step) {
+                var lum1 = data[j]   * .299 + data[j+1]   * .587 + data[j+2]   * .114;
+                var lum2 = data[j+4*step] * .299 + data[j+4*step+1] * .587 + data[j+4*step+2] * .114;
+                var d = lum1 - lum2;
+                gradSoma += d * d;
+                count++;
+            }
+            var nitidez = count > 0 ? gradSoma / count : 0;
+
+            if (nitidez < NITIDEZ_MIN) {
+                erros.push('Segure firme — imagem borrada');
+                checks.push({ ok: false, msg: 'Nitidez: borrada' });
+            } else {
+                checks.push({ ok: true, msg: 'Nitidez OK' });
+            }
+
+            // --- Checklist visual ---
+            checklistEl.innerHTML = checks.map(function (c) {
+                return '<span class="me-3 ' + (c.ok ? 'text-success' : 'text-danger') + '">'
+                     + (c.ok ? '✓' : '✗') + ' ' + c.msg + '</span>';
+            }).join('');
+
+            // --- Atualiza frame e botão ---
+            qualidadeOk = erros.length === 0;
+            if (qualidadeOk) {
+                guide.className        = 'ok';
+                statusEl.textContent   = '✓ Tudo OK — tire a foto!';
+                statusEl.className     = 'ok';
+                btnCapture.disabled    = false;
+            } else {
+                guide.className        = 'fail';
+                statusEl.textContent   = '✗ ' + erros[0];
+                statusEl.className     = 'fail';
+                btnCapture.disabled    = true;
+            }
+        }
+
+        btnCapture.addEventListener('click', function () {
+            if (!qualidadeOk) return;
+            clearInterval(timer);
+            if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(function (blob) {
+                var file = new File([blob], 'cartaz.jpg', { type: 'image/jpeg' });
+                var dt   = new DataTransfer();
+                dt.items.add(file);
+                capturedInput.files = dt.files;
+                formCamera.submit();
+            }, 'image/jpeg', 0.92);
+        });
+
+        iniciarCamera(null);
+    })();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+    <script>
+    (function() {
+        var fileInput    = document.getElementById('file-input');
+        var filePickerWrap = document.getElementById('file-picker-wrap');
+        var cropWrap     = document.getElementById('crop-wrap');
+        var cropImg      = document.getElementById('crop-img');
+        var btnTrocar    = document.getElementById('btn-trocar');
+        var btnEnviar    = document.getElementById('btn-enviar-crop');
+        var cropForm     = document.getElementById('crop-form');
+        var cropFileInput = document.getElementById('crop-file-input');
+        var cropper      = null;
+
+        fileInput.addEventListener('change', function() {
+            var file = fileInput.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                cropImg.src = e.target.result;
+                filePickerWrap.style.display = 'none';
+                cropWrap.style.display = 'block';
+                if (cropper) { cropper.destroy(); }
+                cropper = new Cropper(cropImg, {
+                    viewMode: 1,
+                    autoCropArea: 0.9,
+                    movable: true,
+                    zoomable: true,
+                    rotatable: false,
+                });
+            };
+            reader.readAsDataURL(file);
+        });
+
+        btnTrocar.addEventListener('click', function() {
+            if (cropper) { cropper.destroy(); cropper = null; }
+            fileInput.value = '';
+            cropWrap.style.display = 'none';
+            filePickerWrap.style.display = 'block';
+        });
+
+        btnEnviar.addEventListener('click', function() {
+            if (!cropper) return;
+            btnEnviar.disabled = true;
+            btnEnviar.textContent = 'Processando…';
+            var canvas = cropper.getCroppedCanvas({ maxWidth: 2000, maxHeight: 2000, imageSmoothingQuality: 'high' });
+            canvas.toBlob(function(blob) {
+                var f = new File([blob], 'cartaz.jpg', { type: 'image/jpeg' });
+                var dt = new DataTransfer();
+                dt.items.add(f);
+                cropFileInput.files = dt.files;
+                cropForm.submit();
+            }, 'image/jpeg', 0.95);
+        });
+    })();
+    </script>
+</body>
+</html>

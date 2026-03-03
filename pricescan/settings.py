@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+load_dotenv()  # carrega variáveis do arquivo .env (ignorado pelo git)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,12 +24,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-b45$hxcdygf^r5djv4d!&tnvze%x9g%p=s$_a11l4ac_)ksegs"
+SECRET_KEY = os.environ["SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]  # Liberado para testes locais na rede
 
 
 # Application definition
@@ -129,3 +132,14 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 AUTHENTICATION_BACKENDS = [
     "src.backends.EmailBackend",
 ]
+
+
+# Tesseract OCR
+import pytesseract  # noqa: E402
+
+# Em Linux/Mac o binário já está no PATH; no Windows, defina TESSERACT_CMD no .env
+_tesseract_cmd = os.environ.get("TESSERACT_CMD", "")
+if _tesseract_cmd:
+    pytesseract.pytesseract.tesseract_cmd = _tesseract_cmd
+
+TESSERACT_LANG = os.environ.get("TESSERACT_LANG", "por")

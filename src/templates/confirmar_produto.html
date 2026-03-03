@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Confirmar Produto — PriceScan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+</head>
+<body class="bg-white">
+
+    <nav class="navbar border-bottom bg-white px-3 px-md-4" style="height:56px;">
+        <a class="navbar-brand fw-bold text-dark fs-6" href="{% url 'src:painel_compras' %}">PriceScan</a>
+        <div class="ms-auto d-flex align-items-center gap-3">
+            <span class="text-muted small d-none d-sm-inline">{{ request.user.username }}</span>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Sair</button>
+            </form>
+        </div>
+    </nav>
+
+    <main class="container py-4 py-md-5">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+
+                <div class="mb-4">
+                    <p class="mb-1">
+                        <a href="{% url 'src:escanear_cartaz' compra.id %}" class="text-muted text-decoration-none small">← Tirar nova foto · Feira #{{ compra.id }}</a>
+                    </p>
+                    <h1 class="h4 fw-semibold text-dark mb-1">Etapa 1 — Confirmar dados</h1>
+                    <p class="text-muted small mb-0">Verifique se o sistema leu os dados corretamente. Corrija o que for necessário.</p>
+                </div>
+
+                <!-- Debug OCR -->
+                {% if texto_ocr %}
+                <details class="mb-4">
+                    <summary class="text-muted small" style="cursor:pointer;">🔍 Texto lido pelo OCR (clique para ver)</summary>
+                    <pre class="mt-2 p-2 rounded border bg-light small" style="white-space:pre-wrap;word-break:break-word;">{{ texto_ocr }}</pre>
+                </details>
+                {% endif %}
+
+                <!-- Miniatura da foto -->
+                {% if foto_url %}
+                <div class="mb-4 text-center">
+                    <img src="{{ foto_url }}" alt="Cartaz escaneado"
+                         class="img-fluid rounded border"
+                         style="max-height:180px; object-fit:contain;">
+                    <p class="text-muted small mt-1 mb-0">Foto escaneada</p>
+                </div>
+                {% endif %}
+
+                <form method="post" action="{% url 'src:confirmar_produto' compra.id %}" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+
+                    <!-- Campo oculto para repassar o caminho da imagem temporária -->
+                    <input type="hidden" name="caminho_tmp" value="{{ caminho_tmp }}">
+                    <input type="hidden" name="foto_url" value="{{ foto_url }}">
+                    <input type="hidden" name="texto_ocr" value="{{ texto_ocr }}">
+
+                    <!-- Nome -->
+                    <div class="mb-3">
+                        <label for="{{ form.nome.id_for_label }}" class="form-label fw-semibold small">{{ form.nome.label }}</label>
+                        <input type="text" name="nome" id="{{ form.nome.id_for_label }}"
+                               value="{{ form.nome.value|default:'' }}"
+                               placeholder="Ex: Arroz Tio João 5kg"
+                               class="form-control{% if form.nome.errors %} is-invalid{% endif %}"
+                               required>
+                        {% if form.nome.errors %}<div class="invalid-feedback">{{ form.nome.errors|join:", " }}</div>{% endif %}
+                    </div>
+
+                    <!-- Peso / Volume -->
+                    <div class="mb-3">
+                        <label for="{{ form.peso_volume.id_for_label }}" class="form-label fw-semibold small">{{ form.peso_volume.label }} <span class="text-muted fw-normal">(opcional)</span></label>
+                        <input type="text" name="peso_volume" id="{{ form.peso_volume.id_for_label }}"
+                               value="{{ form.peso_volume.value|default:'' }}"
+                               placeholder="Ex: 5kg, 500ml"
+                               class="form-control{% if form.peso_volume.errors %} is-invalid{% endif %}">
+                        {% if form.peso_volume.errors %}<div class="invalid-feedback">{{ form.peso_volume.errors|join:", " }}</div>{% endif %}
+                    </div>
+
+                    <!-- Preço unitário -->
+                    <div class="mb-3">
+                        <label for="{{ form.preco_unitario.id_for_label }}" class="form-label fw-semibold small">{{ form.preco_unitario.label }}</label>
+                        <div class="input-group">
+                            <span class="input-group-text text-muted small">R$</span>
+                            <input type="number" name="preco_unitario" id="{{ form.preco_unitario.id_for_label }}"
+                                   value="{{ form.preco_unitario.value|default:'' }}"
+                                   step="0.01" min="0.01" placeholder="0,00"
+                                   class="form-control{% if form.preco_unitario.errors %} is-invalid{% endif %}"
+                                   required>
+                            {% if form.preco_unitario.errors %}<div class="invalid-feedback">{{ form.preco_unitario.errors|join:", " }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Separador atacado -->
+                    <hr class="my-3">
+                    <p class="small text-muted mb-1">Regra de atacado — preencha se o cartaz tiver preço por quantidade</p>
+                    {% if sem_desconto_atacado %}
+                    <p class="small text-danger mb-3">&#9888; O OCR identificou que o preço de atacado é igual ao unitário — este produto não tem desconto por quantidade.</p>
+                    {% endif %}
+
+                    <div class="row g-3 mb-3">
+                        <!-- Qtd. mínima -->
+                        <div class="col-6">
+                            <label for="{{ form.qtd_min_atacado.id_for_label }}" class="form-label fw-semibold small">{{ form.qtd_min_atacado.label }}</label>
+                            <input type="number" name="qtd_min_atacado" id="{{ form.qtd_min_atacado.id_for_label }}"
+                                   value="{{ form.qtd_min_atacado.value|default:'' }}"
+                                   min="1" placeholder="Ex: 3"
+                                   {% if sem_desconto_atacado %}disabled{% endif %}
+                                   class="form-control{% if form.qtd_min_atacado.errors %} is-invalid{% endif %}">
+                            {% if form.qtd_min_atacado.errors %}<div class="invalid-feedback">{{ form.qtd_min_atacado.errors|join:", " }}</div>{% endif %}
+                        </div>
+                        <!-- Preço atacado -->
+                        <div class="col-6">
+                            <label for="{{ form.preco_atacado.id_for_label }}" class="form-label fw-semibold small">{{ form.preco_atacado.label }}</label>
+                            <div class="input-group">
+                                <span class="input-group-text text-muted small">R$</span>
+                                <input type="number" name="preco_atacado" id="{{ form.preco_atacado.id_for_label }}"
+                                       value="{{ form.preco_atacado.value|default:'' }}"
+                                       step="0.01" min="0.01" placeholder="0,00"
+                                       {% if sem_desconto_atacado %}disabled{% endif %}
+                                       class="form-control{% if form.preco_atacado.errors %} is-invalid{% endif %}">
+                            </div>
+                            {% if form.preco_atacado.errors %}<div class="invalid-feedback">{{ form.preco_atacado.errors|join:", " }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-dark btn-lg">Confirmar dados →</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>

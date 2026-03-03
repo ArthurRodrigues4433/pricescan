@@ -1,15 +1,18 @@
-# Ambiente virtual
+# Ambientes virtuais
 venv/
+.venv/
 
 # Arquivos de cache do Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
 # Banco de dados local
 *.sqlite3
 db.sqlite3
 
-# Uploads de mídia
+# Uploads de mídia (fotos dos produtos e temporários do OCR)
 media/
 
 # Configurações do VSCode
@@ -18,3 +21,10 @@ media/
 # Arquivos do sistema
 .DS_Store
 Thumbs.db
+
+# Variáveis de ambiente
+.env
+*.env
+
+# Logs
+*.log

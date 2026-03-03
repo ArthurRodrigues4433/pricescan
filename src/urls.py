@@ -8,6 +8,9 @@ from .views import (
     finalizar_compra,
     excluir_compra,
     register,
+    escanear_cartaz,
+    confirmar_produto,
+    informar_quantidade,
 )
 
 app_name = "src"
@@ -31,4 +34,16 @@ urlpatterns = [
     ),
     path("compras/<int:compra_id>/excluir/", excluir_compra, name="excluir_compra"),
     path("accounts/register/", register, name="register"),
+    # OCR
+    path("compras/<int:compra_id>/escanear/", escanear_cartaz, name="escanear_cartaz"),
+    path(
+        "compras/<int:compra_id>/confirmar/",
+        confirmar_produto,
+        name="confirmar_produto",
+    ),
+    path(
+        "compras/<int:compra_id>/quantidade/",
+        informar_quantidade,
+        name="informar_quantidade",
+    ),
 ]

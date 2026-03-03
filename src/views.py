@@ -1,3 +1,6 @@
+import os
+from decimal import Decimal, InvalidOperation
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import (
     UserCreationForm,
@@ -5,8 +8,15 @@ from django.contrib.auth.forms import (
 from django.contrib import messages
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import render, redirect, get_object_or_404
-from .forms import ItemCompraForm, RegisterForm
+from .forms import (
+    ItemCompraForm,
+    RegisterForm,
+    EscanearCartazForm,
+    ConfirmarProdutoForm,
+    InformarQuantidadeForm,
+)
 from .models import Compra, ItemCompra
+from . import ocr as ocr_module
 
 
 def register(request):
@@ -41,23 +51,9 @@ def criar_compra(request):
 
 @login_required
 def adicionar_produto(request, compra_id):
-
-    # Receba a compra via URL
-    compra = get_object_or_404(
-        Compra, id=compra_id, usuario=request.user, status="ativa"
-    )
-
-    if request.method == "POST":
-        form = ItemCompraForm(request.POST, request.FILES)
-        if form.is_valid():
-            item = form.save(commit=False)
-            item.compra = compra
-            item.save()
-            messages.success(request, f'"{item.nome}" adicionado com sucesso.')
-            return redirect("src:adicionar_produto", compra_id=compra_id)
-    else:
-        form = ItemCompraForm()
-    return render(request, "adicionar_produto.html", {"form": form, "compra": compra})
+    # O fluxo de adição agora é 100% via OCR — redireciona direto para o scanner
+    get_object_or_404(Compra, id=compra_id, usuario=request.user, status="ativa")
+    return redirect("src:escanear_cartaz", compra_id=compra_id)
 
 
 @login_required
@@ -98,6 +94,238 @@ def finalizar_compra(request, compra_id):
     compra.status = "finalizada"
     compra.save(update_fields=["status"])
     return redirect("src:painel_compras")
+
+
+# ---------------------------------------------------------------------------
+# Views do módulo OCR
+# ---------------------------------------------------------------------------
+
+_TMP_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "media", "tmp")
+
+
+@login_required
+def escanear_cartaz(request, compra_id):
+    compra = get_object_or_404(
+        Compra, id=compra_id, usuario=request.user, status="ativa"
+    )
+
+    if request.method == "POST":
+        form = EscanearCartazForm(request.POST, request.FILES)
+        if form.is_valid():
+            foto = request.FILES["foto"]
+
+            # Salva temporariamente
+            os.makedirs(_TMP_DIR, exist_ok=True)
+            nome_tmp = f"tmp_{request.user.id}_{compra_id}_{foto.name}"
+            caminho_tmp = os.path.join(_TMP_DIR, nome_tmp)
+            with open(caminho_tmp, "wb") as f:
+                for chunk in foto.chunks():
+                    f.write(chunk)
+
+            # Checagem de qualidade
+            from_arquivo = request.POST.get("fonte") == "arquivo"
+            ok, motivo = ocr_module.checar_qualidade(
+                caminho_tmp, checar_resolucao=not from_arquivo
+            )
+            if not ok:
+                os.remove(caminho_tmp)
+                messages.error(request, motivo)
+                return render(
+                    request,
+                    "escanear_cartaz.html",
+                    {"form": EscanearCartazForm(), "compra": compra},
+                )
+
+            # OCR + parser
+            try:
+                texto = ocr_module.extrair_texto(caminho_tmp)
+            except Exception as e:
+                os.remove(caminho_tmp)
+                messages.error(
+                    request,
+                    f"Erro no OCR: {e}. Verifique se o Tesseract está instalado em C:\\Program Files\\Tesseract-OCR\\tesseract.exe",
+                )
+                return render(
+                    request,
+                    "escanear_cartaz.html",
+                    {"form": EscanearCartazForm(), "compra": compra},
+                )
+
+            dados = ocr_module.parsear_cartaz(texto)
+            dados["caminho_tmp"] = caminho_tmp
+
+            def _br_to_decimal(s: str) -> str | None:
+                """Converte 'R$ 9,18' / '9,18' → '9.18' para DecimalField do Django."""
+                if not s:
+                    return None
+                return s.replace(".", "").replace(",", ".")
+
+            confirm_form = ConfirmarProdutoForm(
+                initial={
+                    "nome": dados["nome"],
+                    "peso_volume": dados["peso_volume"],
+                    "preco_unitario": _br_to_decimal(dados["preco_unitario"]),
+                    "preco_atacado": _br_to_decimal(dados["preco_atacado"]),
+                    "qtd_min_atacado": dados["qtd_min_atacado"] or None,
+                }
+            )
+
+            return render(
+                request,
+                "confirmar_produto.html",
+                {
+                    "form": confirm_form,
+                    "compra": compra,
+                    "caminho_tmp": caminho_tmp,
+                    "foto_url": f"/media/tmp/{nome_tmp}",
+                    "texto_ocr": texto,
+                    "sem_desconto_atacado": dados.get("sem_desconto_atacado", False),
+                },
+            )
+    else:
+        form = EscanearCartazForm()
+
+    return render(request, "escanear_cartaz.html", {"form": form, "compra": compra})
+
+
+@login_required
+def confirmar_produto(request, compra_id):
+    """Etapa 1 — valida os dados do OCR e exibe tela de quantidade."""
+    compra = get_object_or_404(
+        Compra, id=compra_id, usuario=request.user, status="ativa"
+    )
+
+    if request.method != "POST":
+        return redirect("src:escanear_cartaz", compra_id=compra_id)
+
+    form = ConfirmarProdutoForm(request.POST, request.FILES)
+    caminho_tmp = request.POST.get("caminho_tmp", "")
+    foto_url = request.POST.get("foto_url", "")
+
+    if not form.is_valid():
+        return render(
+            request,
+            "confirmar_produto.html",
+            {
+                "form": form,
+                "compra": compra,
+                "caminho_tmp": caminho_tmp,
+                "foto_url": foto_url,
+            },
+        )
+
+    d = form.cleaned_data
+    qtd_form = InformarQuantidadeForm()
+    texto_ocr = request.POST.get("texto_ocr", "")
+
+    return render(
+        request,
+        "informar_quantidade.html",
+        {
+            "qtd_form": qtd_form,
+            "compra": compra,
+            "nome": d["nome"],
+            "peso_volume": d.get("peso_volume", ""),
+            "preco_unitario": d["preco_unitario"],
+            "preco_atacado": d.get("preco_atacado") or "",
+            "qtd_min_atacado": d.get("qtd_min_atacado") or "",
+            "caminho_tmp": caminho_tmp,
+            "foto_url": foto_url,
+            "texto_ocr": texto_ocr,
+        },
+    )
+
+
+@login_required
+def informar_quantidade(request, compra_id):
+    """Etapa 2 — recebe a quantidade, calcula o total e salva o item."""
+    compra = get_object_or_404(
+        Compra, id=compra_id, usuario=request.user, status="ativa"
+    )
+
+    if request.method != "POST":
+        return redirect("src:escanear_cartaz", compra_id=compra_id)
+
+    qtd_form = InformarQuantidadeForm(request.POST)
+
+    # Recupera dados da etapa 1 via POST oculto
+    nome = request.POST.get("nome", "")
+    peso_volume = request.POST.get("peso_volume", "")
+    caminho_tmp = request.POST.get("caminho_tmp", "")
+    foto_url = request.POST.get("foto_url", "")
+    texto_ocr = request.POST.get("texto_ocr", "")
+
+    def _decimal(val):
+        try:
+            return Decimal(str(val).replace(",", "."))
+        except (InvalidOperation, TypeError):
+            return None
+
+    preco_unitario = _decimal(request.POST.get("preco_unitario"))
+    preco_atacado = _decimal(request.POST.get("preco_atacado")) or None
+    qtd_min_str = request.POST.get("qtd_min_atacado", "")
+    qtd_min_atacado = int(qtd_min_str) if qtd_min_str.isdigit() else None
+
+    if not qtd_form.is_valid() or not preco_unitario:
+        return render(
+            request,
+            "informar_quantidade.html",
+            {
+                "qtd_form": qtd_form,
+                "compra": compra,
+                "nome": nome,
+                "peso_volume": peso_volume,
+                "preco_unitario": preco_unitario,
+                "preco_atacado": preco_atacado or "",
+                "qtd_min_atacado": qtd_min_atacado or "",
+                "caminho_tmp": caminho_tmp,
+                "foto_url": foto_url,
+            },
+        )
+
+    quantidade = qtd_form.cleaned_data["quantidade"]
+
+    # Salva a foto definitivamente em media/produtos/
+    foto_field = None
+    if caminho_tmp and os.path.exists(caminho_tmp):
+        from django.core.files import File
+
+        with open(caminho_tmp, "rb") as f:
+            nome_arquivo = os.path.basename(caminho_tmp).replace(
+                f"tmp_{request.user.id}_{compra_id}_", ""
+            )
+            foto_field = File(f, name=nome_arquivo)
+            item = ItemCompra(
+                compra=compra,
+                nome=nome,
+                peso_volume=peso_volume,
+                preco_unitario=preco_unitario,
+                preco_atacado=preco_atacado,
+                qtd_min_atacado=qtd_min_atacado,
+                quantidade=quantidade,
+                ocr_texto=texto_ocr,
+            )
+            item.foto.save(nome_arquivo, foto_field, save=False)
+            item.save()
+        # Remove o arquivo temporário
+        try:
+            os.remove(caminho_tmp)
+        except OSError:
+            pass
+    else:
+        item = ItemCompra.objects.create(
+            compra=compra,
+            nome=nome,
+            peso_volume=peso_volume,
+            preco_unitario=preco_unitario,
+            preco_atacado=preco_atacado,
+            qtd_min_atacado=qtd_min_atacado,
+            quantidade=quantidade,
+            ocr_texto=texto_ocr,
+        )
+
+    messages.success(request, f'"{item.nome}" adicionado com sucesso.')
+    return redirect("src:lista_compra", compra_id=compra_id)
 
 
 @login_required
