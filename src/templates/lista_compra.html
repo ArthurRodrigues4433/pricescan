@@ -6,6 +6,7 @@
 </head>
 <body>
     <h1>Minha Feira</h1>
+    <p>Status da compra: <strong>{{ compra.get_status_display }}</strong></p>
     <table>
         <tr>
             <th>Foto</th>
@@ -13,6 +14,7 @@
             <th>Qtde</th>
             <th>Unit</th>
             <th>Total</th>
+            <th>Ações</th>
         </tr>
         {% for item in itens %}
         <tr>
@@ -27,14 +29,32 @@
             <td>{{ item.quantidade }}</td>
             <td>R$ {{ item.preco_unitario }}</td>
             <td>R$ {{ item.preco_total|floatformat:2 }}</td>
+            <td>
+                {% if compra.status == 'ativa' %}
+                <form method="post" action="{% url 'remover_item' compra.id item.id %}">
+                    {% csrf_token %}
+                    <button type="submit">Remover</button>
+                </form>
+                {% else %}
+                -
+                {% endif %}
+            </td>
         </tr>
         {% empty %}
         <tr>
-            <td colspan="5">Nenhum produto adicionado.</td>
+            <td colspan="6">Nenhum produto adicionado.</td>
         </tr>
         {% endfor %}
     </table>
     <h2>Total da Feira: R$ {{ total_geral|floatformat:2 }}</h2>
-    <a href="{% url 'adicionar_produto' %}">Adicionar novo produto</a>
+    {% if compra.status == 'ativa' %}
+    <a href="{% url 'adicionar_produto' compra.id %}">Adicionar novo produto</a>
+    <form method="post" action="{% url 'finalizar_compra' compra.id %}" style="margin-top: 12px;">
+        {% csrf_token %}
+        <button type="submit">Finalizar compra</button>
+    </form>
+    {% else %}
+    <a href="{% url 'criar_compra' %}">Iniciar nova compra</a>
+    {% endif %}
 </body>
 </html>

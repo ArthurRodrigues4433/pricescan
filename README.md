@@ -71,8 +71,7 @@ PriceScan/
    ```
 7. Acesse:
    - Admin: http://127.0.0.1:8000/admin
-   - Adicionar produto: http://127.0.0.1:8000/adicionar/
-   - Lista de compras: http://127.0.0.1:8000/lista/
+   - Iniciar compra (redireciona para adicionar produto): http://127.0.0.1:8000/
 
 ## Observações
 - O upload de imagens funciona apenas em modo DEBUG.

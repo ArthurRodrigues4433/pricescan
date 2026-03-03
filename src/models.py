@@ -3,8 +3,10 @@ from django.contrib.auth.models import User
 
 
 class Compra(models.Model):
+    STATUS_CHOICES = [('ativa', 'Ativa'), ('finalizada', 'Finalizada')]
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     data = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ativa')
 
     def total(self):
         return sum(item.preco_total() for item in self.itens.all())
