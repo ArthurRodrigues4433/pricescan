@@ -20,7 +20,7 @@
 
 <div class="lc-page">
 
-    <!-- Navbar mÃ­nima -->
+    <!-- Navbar mi­nima -->
     <nav class="navbar border-bottom bg-white px-3 px-md-4" style="height:56px;">
         <a class="navbar-brand fw-bold text-dark fs-6" href="{% url 'src:painel_compras' %}">PriceScan</a>
         <div class="ms-auto d-flex align-items-center gap-3">
@@ -34,10 +34,10 @@
 
     <main class="container lc-body py-md-5">
 
-        <!-- EstÃ¡tico: cabeÃ§alho + resumo -->
+        <!-- Estático: cabeçalho + resumo -->
         <div class="lc-static pt-4 pt-md-0">
 
-            <!-- Contexto + cabeÃ§alho -->
+            <!-- Contexto + cabeçalho -->
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 mb-4 mb-md-5">
                 <div>
                     <p class="mb-1">
@@ -74,7 +74,7 @@
 
         </div><!-- /lc-static -->
 
-        <!-- RolÃ¡vel: lista de itens -->
+        <!-- Rolavel: lista de itens -->
         <div class="lc-scroll">
 
             <!-- Mobile: lista de itens -->
@@ -173,7 +173,7 @@
                 </div>
             </div>
 
-            <!-- Desktop: AÃ§Ã£o final -->
+            <!-- Desktop: final -->
             {% if compra.status == 'ativa' %}
             <div class="d-none d-md-block mt-4 pt-2 border-top">
                 <form method="post" action="{% url 'src:finalizar_compra' compra.id %}">
