@@ -7,6 +7,12 @@ from .models import ItemCompra
 
 
 class RegisterForm(UserCreationForm):
+    nome = forms.CharField(
+        required=True,
+        label="Nome",
+        max_length=150,
+        widget=forms.TextInput(attrs={"placeholder": "Seu nome completo"}),
+    )
     email = forms.EmailField(
         required=True,
         label="E-mail",
@@ -42,9 +48,11 @@ class RegisterForm(UserCreationForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.email = self.cleaned_data["email"].lower()
-        # usa o e-mail como username (aceita até 150 chars)
-        user.username = user.email
+        email = self.cleaned_data["email"].lower()
+        user.email = email
+        user.first_name = self.cleaned_data["nome"].strip()
+        # username interno gerado a partir do e-mail (único por definição)
+        user.username = email
         if commit:
             user.save()
         return user

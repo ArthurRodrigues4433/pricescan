@@ -12,7 +12,10 @@
     <nav class="navbar border-bottom bg-white px-3 px-md-4" style="height:56px;">
         <a class="navbar-brand fw-bold text-dark fs-6" href="{% url 'src:painel_compras' %}">PriceScan</a>
         <div class="ms-auto d-flex align-items-center gap-3">
-            <span class="text-muted small d-none d-sm-inline">{{ request.user.username }}</span>
+            <a href="{% url 'src:perfil' %}" class="link-dark text-decoration-none d-flex align-items-center gap-1" title="Meu perfil">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="d-sm-none" viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm4 1a4 4 0 0 1-8 0h1a3 3 0 0 0 6 0h1z"/></svg>
+                <span class="small fw-semibold text-decoration-underline d-none d-sm-inline" style="text-underline-offset:2px;">{{ request.user.first_name|default:request.user.email|truncatewords:2 }}</span>
+            </a>
             <form method="post" action="{% url 'logout' %}">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-outline-secondary">Sair</button>

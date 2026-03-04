@@ -1,3 +1,5 @@
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
 import os
 from decimal import Decimal, InvalidOperation
 
@@ -158,13 +160,65 @@ def remover_item(request, compra_id, item_id):
 
 
 @login_required
+def perfil(request):
+    user = request.user
+    total_feiras = Compra.objects.filter(usuario=user).count()
+    total_itens = ItemCompra.objects.filter(compra__usuario=user).count()
+    feiras_finalizadas = Compra.objects.filter(
+        usuario=user, status="finalizada"
+    ).count()
+
+    pw_form = PasswordChangeForm(user)
+    pw_error = None
+    pw_success = False
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        if action == "change_password":
+            pw_form = PasswordChangeForm(user, request.POST)
+            if pw_form.is_valid():
+                pw_form.save()
+                update_session_auth_hash(request, pw_form.user)
+                messages.success(request, "Senha alterada com sucesso!")
+                return redirect("src:perfil")
+            else:
+                pw_error = True
+
+        elif action == "delete_account":
+            confirm = request.POST.get("confirmar_delete", "").strip().lower()
+            if confirm == user.email.lower():
+                user.delete()
+                return redirect("login")
+            else:
+                messages.error(request, "E-mail incorreto. Conta não deletada.")
+
+    return render(
+        request,
+        "perfil.html",
+        {
+            "pw_form": pw_form,
+            "pw_error": pw_error,
+            "pw_success": pw_success,
+            "total_feiras": total_feiras,
+            "total_itens": total_itens,
+            "feiras_finalizadas": feiras_finalizadas,
+        },
+    )
+
+
+@login_required
 def editar_quantidade(request, compra_id, item_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
-    compra = get_object_or_404(Compra, id=compra_id, usuario=request.user, status="ativa")
+    compra = get_object_or_404(
+        Compra, id=compra_id, usuario=request.user, status="ativa"
+    )
     item = get_object_or_404(ItemCompra, id=item_id, compra=compra)
     try:
-        nova_qtd = Decimal(str(request.POST.get("nova_quantidade", "")).replace(",", "."))
+        nova_qtd = Decimal(
+            str(request.POST.get("nova_quantidade", "")).replace(",", ".")
+        )
         if nova_qtd <= 0:
             raise ValueError
     except (ValueError, InvalidOperation):

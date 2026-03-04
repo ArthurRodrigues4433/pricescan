@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Meu Perfil — PriceScan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+</head>
+<body class="bg-white">
+
+    <!-- Navbar -->
+    <nav class="navbar border-bottom bg-white px-3 px-md-4" style="height:56px;">
+        <a class="navbar-brand fw-bold text-dark fs-6" href="{% url 'src:painel_compras' %}">PriceScan</a>
+        <div class="ms-auto d-flex align-items-center gap-3">
+            <a href="{% url 'src:perfil' %}" class="link-dark text-decoration-none d-flex align-items-center gap-1" title="Meu perfil">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="d-sm-none" viewBox="0 0 16 16"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm4 1a4 4 0 0 1-8 0h1a3 3 0 0 0 6 0h1z"/></svg>
+                <span class="small fw-semibold text-decoration-underline d-none d-sm-inline" style="text-underline-offset:2px;">{{ request.user.first_name|default:request.user.email|truncatewords:2 }}</span>
+            </a>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Sair</button>
+            </form>
+        </div>
+    </nav>
+
+    <main class="container py-4 py-md-5" style="max-width:560px;">
+
+        <a href="{% url 'src:painel_compras' %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 mb-4">
+            &#8592; Minhas Feiras
+        </a>
+
+        {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'danger' }} alert-dismissible fade show py-2 small mb-3" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <h1 class="h4 fw-semibold mb-4">Meu Perfil</h1>
+
+        <!-- Estatísticas -->
+        <div class="card border-0 bg-light rounded-3 p-3 mb-4">
+            <div class="row g-3 text-center">
+                <div class="col-4">
+                    <div class="fw-bold fs-5">{{ total_feiras }}</div>
+                    <div class="text-muted" style="font-size:.75rem;">Feiras</div>
+                </div>
+                <div class="col-4 border-start border-end">
+                    <div class="fw-bold fs-5">{{ feiras_finalizadas }}</div>
+                    <div class="text-muted" style="font-size:.75rem;">Finalizadas</div>
+                </div>
+                <div class="col-4">
+                    <div class="fw-bold fs-5">{{ total_itens }}</div>
+                    <div class="text-muted" style="font-size:.75rem;">Itens escaneados</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dados da conta -->
+        <div class="card border rounded-3 p-3 mb-4">
+            <h6 class="fw-semibold mb-3">Dados da conta</h6>
+            <div class="d-flex justify-content-between small py-2 border-bottom">
+                <span class="text-muted">Nome</span>
+                <span class="fw-semibold">{{ request.user.first_name|default:"—" }}</span>
+            </div>
+            <div class="d-flex justify-content-between small py-2">
+                <span class="text-muted">E-mail</span>
+                <span class="fw-semibold">{{ request.user.email|default:"—" }}</span>
+            </div>
+        </div>
+
+        <!-- Trocar senha -->
+        <div class="card border rounded-3 p-3 mb-4">
+            <h6 class="fw-semibold mb-3">Trocar senha</h6>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="change_password">
+                {% for field in pw_form %}
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    <input type="password"
+                           id="{{ field.id_for_label }}"
+                           name="{{ field.html_name }}"
+                           class="form-control form-control-sm {% if field.errors %}is-invalid{% endif %}">
+                    {% for error in field.errors %}
+                    <div class="invalid-feedback">{{ error }}</div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-dark btn-sm">Alterar senha</button>
+            </form>
+        </div>
+
+        <!-- Deletar conta -->
+        <div class="card border border-danger-subtle rounded-3 p-3">
+            <h6 class="fw-semibold text-danger mb-1">Deletar conta</h6>
+            <p class="text-muted small mb-3">Todos os seus dados, feiras e itens serão apagados permanentemente. Esta ação não pode ser desfeita.</p>
+            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="collapse" data-bs-target="#collapseDelete">
+                Deletar minha conta
+            </button>
+            <div class="collapse mt-3" id="collapseDelete">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_account">
+                    <label class="form-label small" for="confirmar_delete">Digite seu e-mail <strong>{{ request.user.email }}</strong> para confirmar:</label>
+                    <input type="text" id="confirmar_delete" name="confirmar_delete" class="form-control form-control-sm mb-2" placeholder="{{ request.user.email }}" autocomplete="off">
+                    <button type="submit" class="btn btn-danger btn-sm">Confirmar exclusão</button>
+                </form>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
