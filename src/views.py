@@ -260,7 +260,7 @@ def escanear_cartaz(request, compra_id):
 
             # Salva temporariamente
             os.makedirs(_TMP_DIR, exist_ok=True)
-            nome_tmp = f"tmp_{request.user.id}_{compra_id}_{foto.name}"
+            nome_tmp = f"tmp_{request.user.id}_{compra_id}_{os.path.basename(foto.name)}"
             caminho_tmp = os.path.join(_TMP_DIR, nome_tmp)
             with open(caminho_tmp, "wb") as f:
                 for chunk in foto.chunks():
@@ -344,6 +344,12 @@ def confirmar_produto(request, compra_id):
 
     form = ConfirmarProdutoForm(request.POST, request.FILES)
     caminho_tmp = request.POST.get("caminho_tmp", "")
+    # Segurança: garante que o caminho está dentro de _TMP_DIR
+    if caminho_tmp:
+        _real = os.path.realpath(caminho_tmp)
+        _allowed = os.path.realpath(_TMP_DIR)
+        if not _real.startswith(_allowed + os.sep) and _real != _allowed:
+            caminho_tmp = ""
     foto_url = request.POST.get("foto_url", "")
 
     if not form.is_valid():
@@ -396,6 +402,12 @@ def informar_quantidade(request, compra_id):
     nome = request.POST.get("nome", "")
     peso_volume = request.POST.get("peso_volume", "")
     caminho_tmp = request.POST.get("caminho_tmp", "")
+    # Segurança: garante que o caminho está dentro de _TMP_DIR
+    if caminho_tmp:
+        _real = os.path.realpath(caminho_tmp)
+        _allowed = os.path.realpath(_TMP_DIR)
+        if not _real.startswith(_allowed + os.sep) and _real != _allowed:
+            caminho_tmp = ""
     foto_url = request.POST.get("foto_url", "")
     texto_ocr = request.POST.get("texto_ocr", "")
 
