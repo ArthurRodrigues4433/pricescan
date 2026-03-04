@@ -67,7 +67,19 @@ def criar_compra(request):
     if Compra.objects.filter(usuario=request.user, status="ativa").exists():
         messages.error(request, "Finalize a feira ativa antes de criar uma nova.")
         return redirect("src:painel_compras")
-    nova_compra = Compra.objects.create(usuario=request.user, status="ativa")
+    nome = request.POST.get("nome", "").strip()
+    orcamento_str = request.POST.get("orcamento", "").strip()
+    orcamento = None
+    if orcamento_str:
+        try:
+            orcamento = Decimal(orcamento_str.replace(",", "."))
+            if orcamento <= 0:
+                orcamento = None
+        except (InvalidOperation, TypeError):
+            orcamento = None
+    nova_compra = Compra.objects.create(
+        usuario=request.user, status="ativa", nome=nome, orcamento=orcamento
+    )
     return redirect("src:lista_compra", compra_id=nova_compra.id)  # type: ignore
 
 
@@ -83,6 +95,39 @@ def lista_compra(request, compra_id):
     compra = get_object_or_404(Compra, id=compra_id, usuario=request.user)
     itens = compra.itens.all()  # type: ignore
     total_geral = compra.total()
+
+    # Resumo para o painel expandido do rodapé mobile
+    qtd_com_desc = 0
+    total_com_desc = Decimal("0")
+    qtd_sem_desc = 0
+    total_sem_desc = Decimal("0")
+    for item in itens:
+        subtotal = item.preco_total()
+        # usa atacado se o total cobrado difere do preço unitário × qtd
+        if subtotal != item.preco_unitario * item.quantidade:
+            qtd_com_desc += 1
+            total_com_desc += subtotal
+        else:
+            qtd_sem_desc += 1
+            total_sem_desc += subtotal
+    resumo_itens = {
+        "com_desconto": {"qtd": qtd_com_desc, "total": total_com_desc},
+        "sem_desconto": {"qtd": qtd_sem_desc, "total": total_sem_desc},
+    }
+
+    orcamento_info = None
+    if compra.orcamento:
+        percentual = float(total_geral / compra.orcamento * 100)
+        restante = compra.orcamento - total_geral
+        orcamento_info = {
+            "valor": compra.orcamento,
+            "percentual": round(percentual, 1),
+            "percentual_capped": min(round(percentual, 1), 100),
+            "restante": restante,
+            "excedido": total_geral > compra.orcamento,
+            "alerta": percentual >= 85 and total_geral <= compra.orcamento,
+        }
+
     return render(
         request,
         "lista_compra.html",
@@ -90,6 +135,8 @@ def lista_compra(request, compra_id):
             "compra": compra,
             "itens": itens,
             "total_geral": total_geral,
+            "orcamento_info": orcamento_info,
+            "resumo_itens": resumo_itens,
         },
     )
 
@@ -306,6 +353,40 @@ def informar_quantidade(request, compra_id):
         )
 
     quantidade = qtd_form.cleaned_data["quantidade"]
+
+    # Calcular total do item antes de salvar
+    if preco_atacado and qtd_min_atacado and quantidade >= qtd_min_atacado:
+        item_total = preco_atacado * quantidade
+    else:
+        item_total = preco_unitario * quantidade
+
+    # Verificar orçamento — pede confirmação se for exceder
+    if compra.orcamento and request.POST.get("confirmar_excesso") != "1":
+        total_atual = compra.total()
+        total_novo = total_atual + item_total
+        if total_novo > compra.orcamento:
+            excesso = total_novo - compra.orcamento
+            return render(
+                request,
+                "informar_quantidade.html",
+                {
+                    "qtd_form": qtd_form,
+                    "compra": compra,
+                    "nome": nome,
+                    "peso_volume": peso_volume,
+                    "preco_unitario": preco_unitario,
+                    "preco_atacado": preco_atacado or "",
+                    "qtd_min_atacado": qtd_min_atacado or "",
+                    "caminho_tmp": caminho_tmp,
+                    "foto_url": foto_url,
+                    "texto_ocr": texto_ocr,
+                    "excedeu_orcamento": True,
+                    "excesso": excesso,
+                    "item_total": item_total,
+                    "orcamento": compra.orcamento,
+                    "total_novo": total_novo,
+                },
+            )
 
     # Salva a foto definitivamente em media/produtos/
     foto_field = None

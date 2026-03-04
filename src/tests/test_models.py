@@ -47,3 +47,40 @@ class ItemCompraPrecosTest(TestCase):
 
     def test_compra_total_vazia(self):
         self.assertEqual(self.compra.total(), 0)
+
+
+class CompraModelCamposTest(TestCase):
+    """Testa os campos nome e orcamento do modelo Compra."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="u@t.com", password="pass1234")
+
+    def test_nome_padrao_e_vazio(self):
+        compra = Compra.objects.create(usuario=self.user, status="ativa")
+        self.assertEqual(compra.nome, "")
+
+    def test_orcamento_padrao_e_none(self):
+        compra = Compra.objects.create(usuario=self.user, status="ativa")
+        self.assertIsNone(compra.orcamento)
+
+    def test_salva_e_recupera_nome(self):
+        compra = Compra.objects.create(
+            usuario=self.user, status="ativa", nome="Feira do Mês"
+        )
+        compra.refresh_from_db()
+        self.assertEqual(compra.nome, "Feira do Mês")
+
+    def test_salva_e_recupera_orcamento(self):
+        compra = Compra.objects.create(
+            usuario=self.user, status="ativa", orcamento=Decimal("250.00")
+        )
+        compra.refresh_from_db()
+        self.assertEqual(compra.orcamento, Decimal("250.00"))
+
+    def test_nome_maximo_100_caracteres(self):
+        nome_longo = "A" * 100
+        compra = Compra.objects.create(
+            usuario=self.user, status="ativa", nome=nome_longo
+        )
+        compra.refresh_from_db()
+        self.assertEqual(len(compra.nome), 100)

@@ -57,7 +57,7 @@
                     </div>
                 </div>
 
-                <form method="post" action="{% url 'src:informar_quantidade' compra.id %}" novalidate>
+                <form method="post" action="{% url 'src:informar_quantidade' compra.id %}" novalidate id="form-qtd">
                     {% csrf_token %}
 
                     <!-- Repassa todos os dados da etapa 1 como campos ocultos -->
@@ -69,6 +69,7 @@
                     <input type="hidden" name="caminho_tmp" value="{{ caminho_tmp }}">
                     <input type="hidden" name="foto_url" value="{{ foto_url }}">
                     <input type="hidden" name="texto_ocr" value="{{ texto_ocr }}">
+                    <input type="hidden" name="confirmar_excesso" id="confirmar-excesso-field" value="0">
 
                     <!-- Quantidade -->
                     <div class="mb-3">
@@ -79,6 +80,7 @@
                                step="0.01"
                                min="0.01"
                                placeholder="Ex: 2"
+                               value="{{ qtd_form.quantidade.value|default:'' }}"
                                autofocus
                                class="form-control form-control-lg{% if qtd_form.quantidade.errors %} is-invalid{% endif %}">
                         {% if qtd_form.quantidade.errors %}
@@ -99,6 +101,42 @@
             </div>
         </div>
     </main>
+
+    {% if excedeu_orcamento %}
+    <!-- Modal: orçamento excedido -->
+    <div class="modal fade" id="modalExcedeuOrcamento" tabindex="-1" aria-labelledby="modalExcedeuOrcamentoLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-semibold text-danger" id="modalExcedeuOrcamentoLabel">&#9888; Orçamento excedido</h5>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Este item vai <strong>ultrapassar seu orçamento</strong> em <strong class="text-danger">R$ {{ excesso|floatformat:2 }}</strong>.</p>
+                    <ul class="list-unstyled small text-muted mb-0">
+                        <li>Valor do item: <strong>R$ {{ item_total|floatformat:2 }}</strong></li>
+                        <li>Novo total da feira: <strong>R$ {{ total_novo|floatformat:2 }}</strong></li>
+                        <li>Orçamento definido: <strong>R$ {{ orcamento|floatformat:2 }}</strong></li>
+                    </ul>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger btn-sm px-4" id="btn-continuar-mesmo-assim">Continuar mesmo assim</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Abre o modal automaticamente ao carregar a página
+        document.addEventListener('DOMContentLoaded', function () {
+            var modal = new bootstrap.Modal(document.getElementById('modalExcedeuOrcamento'));
+            modal.show();
+        });
+        document.getElementById('btn-continuar-mesmo-assim').addEventListener('click', function () {
+            document.getElementById('confirmar-excesso-field').value = '1';
+            document.getElementById('form-qtd').submit();
+        });
+    </script>
+    {% endif %}
 
     <script>
         (function () {

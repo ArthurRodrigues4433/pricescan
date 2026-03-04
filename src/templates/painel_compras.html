@@ -99,7 +99,7 @@
                 <!-- Linha 1: ID + status + total -->
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <div class="d-flex align-items-center gap-2">
-                        <span class="fw-semibold">#{{ compra.id }}</span>
+                        <span class="fw-semibold">{% if compra.nome %}{{ compra.nome }}{% else %}#{{ compra.id }}{% endif %}</span>
                         {% if compra.status == 'ativa' %}
                         <span class="badge text-bg-success" style="font-size:.65rem;">Ativa</span>
                         {% else %}
@@ -109,9 +109,15 @@
                     </div>
                     <span class="fw-semibold">R$ {{ compra.total|floatformat:2 }}</span>
                 </div>
-                <!-- Linha 2: data relativa -->
-                <p class="text-muted small mb-3">
+                <!-- Linha 2: data relativa + orçamento -->
+                <p class="text-muted small mb-2">
                     <time class="js-relative-time" datetime="{{ compra.data|date:'c' }}">{{ compra.data|date:"d/m/Y H:i" }}</time>
+                    {% if compra.orcamento %}
+                    &nbsp;&middot;&nbsp;
+                    {% with pct=compra.total|floatformat:2 %}
+                    <span>Orçamento: R$ {{ compra.orcamento|floatformat:2 }}</span>
+                    {% endwith %}
+                    {% endif %}
                 </p>
                 <!-- Linha 3: ações -->
                 <div class="d-flex gap-2" onclick="event.stopPropagation()">
@@ -153,7 +159,7 @@
                     <tbody>
                         {% for compra in compras %}
                         <tr data-href="{% url 'src:lista_compra' compra.id %}">
-                            <td class="fw-semibold">#{{ compra.id }}</td>
+                            <td class="fw-semibold">{% if compra.nome %}{{ compra.nome }}<br><span class="text-muted fw-normal" style="font-size:.75rem;">#{{ compra.id }}</span>{% else %}#{{ compra.id }}{% endif %}</td>
                             <td class="text-muted small">
                                 <time class="js-relative-time" datetime="{{ compra.data|date:'c' }}"
                                       title="{{ compra.data|date:'d/m/Y H:i' }}">{{ compra.data|date:"d/m/Y H:i" }}</time>
@@ -208,16 +214,32 @@
                     <h5 class="modal-title fw-semibold" id="modalNovaFeiraLabel">Nova Feira</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
+                <form method="post" action="{% url 'src:criar_compra' %}">
+                {% csrf_token %}
                 <div class="modal-body">
-                    <p class="text-muted small mb-0">Uma nova lista vazia será criada. Você poderá adicionar os produtos em seguida.</p>
+                    <!-- Nome da feira -->
+                    <div class="mb-3">
+                        <label for="nova-feira-nome" class="form-label fw-semibold small">Nome da feira <span class="text-muted fw-normal">(opcional)</span></label>
+                        <input type="text" id="nova-feira-nome" name="nome"
+                               class="form-control" placeholder="Ex: Atacadão março, Feira do mês&hellip;">
+                    </div>
+                    <!-- Orçamento -->
+                    <div class="mb-2">
+                        <label for="nova-feira-orcamento" class="form-label fw-semibold small">Orçamento máximo <span class="text-muted fw-normal">(opcional)</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text text-muted small">R$</span>
+                            <input type="number" id="nova-feira-orcamento" name="orcamento"
+                                   step="0.01" min="0.01" placeholder="0,00"
+                                   class="form-control">
+                        </div>
+                        <div class="text-muted mt-1" style="font-size:.72rem;">O app avisará quando você estiver perto ou ultrapassar esse valor.</div>
+                    </div>
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
-                    <form method="post" action="{% url 'src:criar_compra' %}" class="d-inline">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-dark btn-sm px-4">Criar feira</button>
-                    </form>
+                    <button type="submit" class="btn btn-dark btn-sm px-4">Criar feira</button>
                 </div>
+                </form>
             </div>
         </div>
     </div>

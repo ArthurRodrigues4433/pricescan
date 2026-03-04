@@ -89,6 +89,43 @@ class CriarCompraViewTest(TestCase):
         self.client.post(reverse("src:criar_compra"))
         self.assertEqual(Compra.objects.get(usuario=self.user).status, "ativa")
 
+    def test_criar_compra_com_nome(self):
+        self.client.post(reverse("src:criar_compra"), {"nome": "Feira de Janeiro"})
+        compra = Compra.objects.get(usuario=self.user)
+        self.assertEqual(compra.nome, "Feira de Janeiro")
+
+    def test_criar_compra_com_orcamento(self):
+        self.client.post(reverse("src:criar_compra"), {"orcamento": "300,00"})
+        compra = Compra.objects.get(usuario=self.user)
+        self.assertEqual(compra.orcamento, Decimal("300.00"))
+
+    def test_criar_compra_orcamento_invalido_salva_none(self):
+        """Orçamento não numérico deve ser ignorado (None) sem crash."""
+        self.client.post(reverse("src:criar_compra"), {"orcamento": "abc"})
+        compra = Compra.objects.get(usuario=self.user)
+        self.assertIsNone(compra.orcamento)
+
+    def test_criar_compra_orcamento_negativo_salva_none(self):
+        """Orçamento <= 0 deve ser ignorado."""
+        self.client.post(reverse("src:criar_compra"), {"orcamento": "-50"})
+        compra = Compra.objects.get(usuario=self.user)
+        self.assertIsNone(compra.orcamento)
+
+    def test_bloqueia_criacao_quando_ja_existe_ativa(self):
+        """Não pode criar nova feira se já existe uma ativa."""
+        Compra.objects.create(usuario=self.user, status="ativa")
+        self.client.post(reverse("src:criar_compra"))
+        # Deve continuar com apenas 1 feira
+        self.assertEqual(Compra.objects.filter(usuario=self.user).count(), 1)
+
+    def test_bloqueia_criacao_redireciona_para_painel(self):
+        """Ao bloquear, redireciona para o painel com mensagem de erro."""
+        Compra.objects.create(usuario=self.user, status="ativa")
+        resp = self.client.post(reverse("src:criar_compra"))
+        self.assertRedirects(
+            resp, reverse("src:painel_compras"), fetch_redirect_response=False
+        )
+
 
 class ListaCompraViewTest(TestCase):
     def setUp(self):
@@ -115,6 +152,73 @@ class ListaCompraViewTest(TestCase):
         )
         resp = self.client.get(reverse("src:lista_compra", args=[self.compra.id]))  # type: ignore
         self.assertContains(resp, "10")
+
+    def test_orcamento_info_none_quando_sem_orcamento(self):
+        """Sem orçamento definido, context['orcamento_info'] deve ser None."""
+        resp = self.client.get(reverse("src:lista_compra", args=[self.compra.id]))  # type: ignore
+        self.assertIsNone(resp.context["orcamento_info"])  # type: ignore
+
+    def test_orcamento_info_presente_quando_com_orcamento(self):
+        """Com orçamento definido, orcamento_info deve conter as chaves esperadas."""
+        self.compra.orcamento = Decimal("100.00")
+        self.compra.save()
+        resp = self.client.get(reverse("src:lista_compra", args=[self.compra.id]))  # type: ignore
+        info = resp.context["orcamento_info"]  # type: ignore
+        self.assertIsNotNone(info)
+        for chave in (
+            "valor",
+            "percentual",
+            "percentual_capped",
+            "restante",
+            "excedido",
+            "alerta",
+        ):
+            self.assertIn(chave, info)
+
+    def test_orcamento_info_alerta_quando_perto_do_limite(self):
+        """Quando total >= 85% do orçamento (mas não excede), alerta deve ser True."""
+        self.compra.orcamento = Decimal("100.00")
+        self.compra.save()
+        # Adiciona item que representa 90% do orçamento
+        ItemCompra.objects.create(
+            compra=self.compra,
+            nome="Item",
+            preco_unitario=Decimal("90.00"),
+            quantidade=Decimal("1"),
+        )
+        resp = self.client.get(reverse("src:lista_compra", args=[self.compra.id]))  # type: ignore
+        info = resp.context["orcamento_info"]  # type: ignore
+        self.assertTrue(info["alerta"])
+        self.assertFalse(info["excedido"])
+
+    def test_orcamento_info_excedido_quando_total_maior(self):
+        """Quando total > orçamento, excedido deve ser True e alerta False."""
+        self.compra.orcamento = Decimal("50.00")
+        self.compra.save()
+        ItemCompra.objects.create(
+            compra=self.compra,
+            nome="Item caro",
+            preco_unitario=Decimal("60.00"),
+            quantidade=Decimal("1"),
+        )
+        resp = self.client.get(reverse("src:lista_compra", args=[self.compra.id]))  # type: ignore
+        info = resp.context["orcamento_info"]  # type: ignore
+        self.assertTrue(info["excedido"])
+        self.assertFalse(info["alerta"])
+
+    def test_orcamento_percentual_capped_em_100(self):
+        """percentual_capped não deve ultrapassar 100 mesmo quando total > orçamento."""
+        self.compra.orcamento = Decimal("50.00")
+        self.compra.save()
+        ItemCompra.objects.create(
+            compra=self.compra,
+            nome="Caro",
+            preco_unitario=Decimal("200.00"),
+            quantidade=Decimal("1"),
+        )
+        resp = self.client.get(reverse("src:lista_compra", args=[self.compra.id]))  # type: ignore
+        info = resp.context["orcamento_info"]  # type: ignore
+        self.assertLessEqual(info["percentual_capped"], 100)
 
 
 class RemoverItemViewTest(TestCase):
@@ -483,6 +587,111 @@ class InformarQuantidadeViewTest(TestCase):
         finally:
             shutil.rmtree(media_tmpdir, ignore_errors=True)
             shutil.rmtree(foto_tmpdir, ignore_errors=True)
+
+    def test_nao_excede_orcamento_salva_normalmente(self):
+        """Item dentro do orçamento é salvo sem nenhum bloqueio."""
+        self.compra.orcamento = Decimal("200.00")
+        self.compra.save()
+        resp = self.client.post(
+            self.url,
+            {
+                "nome": "Arroz",
+                "preco_unitario": "10.00",
+                "quantidade": "3",
+                "caminho_tmp": "",
+                "foto_url": "",
+                "confirmar_excesso": "0",
+            },
+        )
+        self.assertEqual(ItemCompra.objects.filter(compra=self.compra).count(), 1)
+        self.assertRedirects(
+            resp,
+            reverse("src:lista_compra", args=[self.compra.id]),  # type: ignore
+            fetch_redirect_response=False,
+        )
+
+    def test_excede_orcamento_rerenderiza_com_flag(self):
+        """Item que extrapola orçamento deve rerenderizar informar_quantidade com excedeu_orcamento=True."""
+        self.compra.orcamento = Decimal("20.00")
+        self.compra.save()
+        resp = self.client.post(
+            self.url,
+            {
+                "nome": "Produto caro",
+                "preco_unitario": "30.00",
+                "quantidade": "1",
+                "caminho_tmp": "",
+                "foto_url": "",
+                "confirmar_excesso": "0",
+            },
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTemplateUsed(resp, "informar_quantidade.html")
+        self.assertTrue(resp.context["excedeu_orcamento"])  # type: ignore
+        # Item NÃO deve ter sido criado
+        self.assertEqual(ItemCompra.objects.filter(compra=self.compra).count(), 0)
+
+    def test_excede_orcamento_context_tem_valores_corretos(self):
+        """O contexto retornado ao exceder orçamento deve conter excesso, item_total e total_novo."""
+        self.compra.orcamento = Decimal("25.00")
+        self.compra.save()
+        resp = self.client.post(
+            self.url,
+            {
+                "nome": "Caro",
+                "preco_unitario": "30.00",
+                "quantidade": "1",
+                "caminho_tmp": "",
+                "foto_url": "",
+                "confirmar_excesso": "0",
+            },
+        )
+        self.assertIn("excesso", resp.context)  # type: ignore
+        self.assertIn("item_total", resp.context)  # type: ignore
+        self.assertIn("total_novo", resp.context)  # type: ignore
+        self.assertIn("orcamento", resp.context)  # type: ignore
+
+    def test_confirmar_excesso_salva_mesmo_ultrapassando_orcamento(self):
+        """Com confirmar_excesso=1 o item é salvo mesmo excedendo o orçamento."""
+        self.compra.orcamento = Decimal("10.00")
+        self.compra.save()
+        resp = self.client.post(
+            self.url,
+            {
+                "nome": "Muito caro",
+                "preco_unitario": "50.00",
+                "quantidade": "1",
+                "caminho_tmp": "",
+                "foto_url": "",
+                "confirmar_excesso": "1",
+            },
+        )
+        self.assertEqual(ItemCompra.objects.filter(compra=self.compra).count(), 1)
+        self.assertRedirects(
+            resp,
+            reverse("src:lista_compra", args=[self.compra.id]),  # type: ignore
+            fetch_redirect_response=False,
+        )
+
+    def test_sem_orcamento_nao_bloqueia_item(self):
+        """Sem orçamento definido, qualquer item é salvo sem verificação de orçamento."""
+        # compra sem orcamento (None por padrão)
+        resp = self.client.post(
+            self.url,
+            {
+                "nome": "Qualquer",
+                "preco_unitario": "999.00",
+                "quantidade": "10",
+                "caminho_tmp": "",
+                "foto_url": "",
+            },
+        )
+        self.assertEqual(ItemCompra.objects.filter(compra=self.compra).count(), 1)
+        self.assertRedirects(
+            resp,
+            reverse("src:lista_compra", args=[self.compra.id]),  # type: ignore
+            fetch_redirect_response=False,
+        )
 
     def test_post_com_foto_tmp_silencia_erro_ao_remover(self):
         """Se os.remove lançar OSError o except silencia o erro e a view redireciona."""

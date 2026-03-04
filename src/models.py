@@ -7,6 +7,10 @@ class Compra(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
     data = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="ativa")
+    nome = models.CharField(max_length=100, blank=True, default="")
+    orcamento = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
 
     def total(self):
         return sum(item.preco_total() for item in self.itens.all())  # type: ignore

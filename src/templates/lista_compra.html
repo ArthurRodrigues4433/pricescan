@@ -44,14 +44,14 @@
                         &#8592; Minhas Feiras
                     </a>
                     <h1 class="h4 fw-semibold text-dark mb-1">
-                        Feira #{{ compra.id }}
+                        {% if compra.nome %}{{ compra.nome }}{% else %}Feira #{{ compra.id }}{% endif %}
                         {% if compra.status == 'ativa' %}
                         <span class="badge text-bg-success ms-1" style="font-size:.65rem; vertical-align:middle;">Ativa</span>
                         {% else %}
                         <span class="badge text-bg-secondary ms-1" style="font-size:.65rem; vertical-align:middle;">Finalizada</span>
                         {% endif %}
                     </h1>
-                    <p class="text-muted small mb-0">{{ compra.data|date:"d/m/Y \Ã \s H:i" }}</p>
+                    {% if compra.nome %}<p class="text-muted small mb-0">#{{ compra.id }} &middot; {{ compra.data|date:"d/m/Y \Ã\s H:i" }}</p>{% else %}<p class="text-muted small mb-0">{{ compra.data|date:"d/m/Y \Ã\s H:i" }}</p>{% endif %}
                 </div>
                 {% if compra.status == 'ativa' %}
                 <div class="d-grid d-md-block">
@@ -70,7 +70,35 @@
                     <p class="text-muted small mb-0">Total estimado</p>
                     <p class="fw-bold mb-0">R$ {{ total_geral|floatformat:2 }}</p>
                 </div>
+                {% if compra.orcamento %}
+                <div>
+                    <p class="text-muted small mb-0">Orçamento</p>
+                    <p class="fw-semibold mb-0 {% if orcamento_info.excedido %}text-danger{% elif orcamento_info.alerta %}text-warning{% else %}text-success{% endif %}">R$ {{ compra.orcamento|floatformat:2 }}</p>
+                </div>
+                {% endif %}
             </div>
+
+            {% if orcamento_info %}
+            <div class="pb-3 mb-3">
+                <div class="d-flex justify-content-between small mb-1">
+                    {% if orcamento_info.excedido %}
+                    <span class="text-danger fw-semibold">&#9888; Orçamento excedido em R$ {{ orcamento_info.restante|floatformat:2|slice:"1:" }}</span>
+                    {% elif orcamento_info.alerta %}
+                    <span class="text-warning fw-semibold">&#9888; Quase no limite! Restam R$ {{ orcamento_info.restante|floatformat:2 }}</span>
+                    {% else %}
+                    <span class="text-muted">R$ {{ total_geral|floatformat:2 }} de R$ {{ orcamento_info.valor|floatformat:2 }}</span>
+                    {% endif %}
+                    <span class="text-muted">{{ orcamento_info.percentual }}%</span>
+                </div>
+                <div class="progress" style="height:6px;">
+                    <div class="progress-bar {% if orcamento_info.excedido %}bg-danger{% elif orcamento_info.alerta %}bg-warning{% else %}bg-success{% endif %}"
+                         role="progressbar"
+                         style="width:{{ orcamento_info.percentual_capped|floatformat:0 }}%"
+                         aria-valuenow="{{ orcamento_info.percentual_capped|floatformat:0 }}"
+                         aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+            {% endif %}
 
         </div><!-- /lc-static -->
 
@@ -231,11 +259,50 @@
 
     <!-- Mobile: total + botão Finalizar (rodapé fixo) -->
     {% if compra.status == 'ativa' %}
-    <div class="lc-footer d-md-none px-3 pt-2 pb-3">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="text-muted small">Total geral</span>
+    <div class="lc-footer d-md-none px-3 pb-3">
+
+        <!-- Painel expandido com detalhamento dos itens -->
+        {% if itens.count > 0 %}
+        <div class="collapse" id="collapseResumoMobile">
+            <div class="border-top pt-2 pb-1 small">
+                {% if resumo_itens.com_desconto.qtd > 0 %}
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">{{ resumo_itens.com_desconto.qtd }} produto{{ resumo_itens.com_desconto.qtd|pluralize:",s" }} no atacado</span>
+                    <span class="fw-semibold text-success">R$ {{ resumo_itens.com_desconto.total|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                {% if resumo_itens.sem_desconto.qtd > 0 %}
+                <div class="d-flex justify-content-between py-1">
+                    <span class="text-muted">{{ resumo_itens.sem_desconto.qtd }} produto{{ resumo_itens.sem_desconto.qtd|pluralize:",s" }} no varejo</span>
+                    <span class="fw-semibold">R$ {{ resumo_itens.sem_desconto.total|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                {% if orcamento_info %}
+                <div class="d-flex justify-content-between py-1 border-top mt-1">
+                    <span class="text-muted">Orçamento</span>
+                    <span class="fw-semibold {% if orcamento_info.excedido %}text-danger{% elif orcamento_info.alerta %}text-warning{% else %}text-success{% endif %}">
+                        R$ {{ orcamento_info.valor|floatformat:2 }}
+                        &mdash;
+                        {% if orcamento_info.excedido %}excedido em R$ {{ orcamento_info.restante|floatformat:2|cut:"-" }}
+                        {% else %}restam R$ {{ orcamento_info.restante|floatformat:2 }}{% endif %}
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Linha do total (clícavel para expandir) -->
+        <div class="d-flex justify-content-between align-items-center pt-2 mb-2"
+             {% if itens.count > 0 %}data-bs-toggle="collapse" data-bs-target="#collapseResumoMobile"
+             role="button" style="cursor:pointer;" id="totalToggleRow"{% endif %}>
+            <span class="text-muted small d-flex align-items-center gap-1">
+                Total geral
+                {% if itens.count > 0 %}<span id="totalToggleIcon" style="font-size:.6rem; transition:transform .2s;">&#9650;</span>{% endif %}
+            </span>
             <span class="fw-bold">R$ {{ total_geral|floatformat:2 }}</span>
         </div>
+
         <button type="button" class="btn btn-dark w-100"
             data-bs-toggle="modal" data-bs-target="#modalFinalizarFeira">Finalizar feira</button>
     </div>
@@ -327,6 +394,14 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script>
+        // Gira ícone do collapse de total mobile
+        const collapseEl = document.getElementById('collapseResumoMobile');
+        const toggleIcon = document.getElementById('totalToggleIcon');
+        if (collapseEl && toggleIcon) {
+            collapseEl.addEventListener('show.bs.collapse', () => { toggleIcon.style.transform = 'rotate(180deg)'; });
+            collapseEl.addEventListener('hide.bs.collapse', () => { toggleIcon.style.transform = ''; });
+        }
+
         // Popula modal de detalhe ao clicar em um item
         document.getElementById('modalItemDetalhe').addEventListener('show.bs.modal', function (e) {
             const el = e.relatedTarget;
