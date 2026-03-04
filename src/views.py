@@ -103,8 +103,12 @@ def lista_compra(request, compra_id):
     total_sem_desc = Decimal("0")
     for item in itens:
         subtotal = item.preco_total()
-        # usa atacado se o total cobrado difere do preço unitário × qtd
-        if subtotal != item.preco_unitario * item.quantidade:
+        # atacado = tem preco_atacado, qtd_min configurados E quantidade atinge o mínimo
+        if (
+            item.preco_atacado
+            and item.qtd_min_atacado
+            and item.quantidade >= item.qtd_min_atacado
+        ):
             qtd_com_desc += 1
             total_com_desc += subtotal
         else:
@@ -150,6 +154,23 @@ def remover_item(request, compra_id, item_id):
     )
     item = get_object_or_404(ItemCompra, id=item_id, compra=compra)
     item.delete()
+    return redirect("src:lista_compra", compra_id=compra_id)
+
+
+@login_required
+def editar_quantidade(request, compra_id, item_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    compra = get_object_or_404(Compra, id=compra_id, usuario=request.user, status="ativa")
+    item = get_object_or_404(ItemCompra, id=item_id, compra=compra)
+    try:
+        nova_qtd = Decimal(str(request.POST.get("nova_quantidade", "")).replace(",", "."))
+        if nova_qtd <= 0:
+            raise ValueError
+    except (ValueError, InvalidOperation):
+        return redirect("src:lista_compra", compra_id=compra_id)
+    item.quantidade = nova_qtd
+    item.save(update_fields=["quantidade"])
     return redirect("src:lista_compra", compra_id=compra_id)
 
 

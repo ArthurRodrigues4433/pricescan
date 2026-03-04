@@ -51,7 +51,7 @@
                         <span class="badge text-bg-secondary ms-1" style="font-size:.65rem; vertical-align:middle;">Finalizada</span>
                         {% endif %}
                     </h1>
-                    {% if compra.nome %}<p class="text-muted small mb-0">#{{ compra.id }} &middot; {{ compra.data|date:"d/m/Y \Ã\s H:i" }}</p>{% else %}<p class="text-muted small mb-0">{{ compra.data|date:"d/m/Y \Ã\s H:i" }}</p>{% endif %}
+                    <p class="text-muted small mb-0">{{ compra.data|date:"d/m/Y \à\s H:i" }}</p>
                 </div>
                 {% if compra.status == 'ativa' %}
                 <div class="d-grid d-md-block">
@@ -119,6 +119,7 @@
                     data-preco-atacado="{{ item.preco_atacado|default:'' }}"
                     data-qtd-min="{{ item.qtd_min_atacado|default:'' }}"
                     data-ocr="{{ item.ocr_texto|default:''|escapejs }}"
+                    data-edit-url="{% url 'src:editar_quantidade' compra_id=compra.id item_id=item.id %}"
                     data-bs-toggle="modal" data-bs-target="#modalItemDetalhe">
                     <div class="flex-shrink-0">
                         {% if item.foto %}
@@ -130,15 +131,31 @@
                     <div class="flex-grow-1" style="min-width:0;">
                         <div class="fw-semibold text-truncate">{{ item.nome }}</div>
                         <div class="text-muted small">
-                            {{ item.quantidade }} Un/Kg &mdash; R$ {{ item.preco_unitario }}
-                            {% if item.peso_volume %}<span class="ms-1 text-muted">&middot; {{ item.peso_volume }}</span>{% endif %}
+                            R$ {{ item.preco_unitario }}/un
+                            {% if item.peso_volume %}<span class="ms-1">&middot; {{ item.peso_volume }}</span>{% endif %}
+                            <span class="ms-1">
                             {% if item.preco_atacado and item.qtd_min_atacado %}
-                            <span class="ms-1 badge text-bg-success" style="font-size:.6rem;">Atacado</span>
+                                {% if item.quantidade >= item.qtd_min_atacado %}
+                                <span class="badge text-bg-success" style="font-size:.6rem;">Atacado</span>
+                                {% else %}
+                                <span class="badge text-bg-warning text-dark" style="font-size:.6rem;">Tem atacado</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge text-bg-secondary" style="font-size:.6rem;">Varejo</span>
                             {% endif %}
+                            </span>
                         </div>
+                        {% if item.preco_atacado and item.qtd_min_atacado and item.quantidade < item.qtd_min_atacado %}
+                        <div class="text-warning mt-1" style="font-size:.68rem;">Faltam {{ item.falta_para_atacado|floatformat:0 }} un para o atacado</div>
+                        {% elif item.preco_atacado and item.qtd_min_atacado and item.quantidade >= item.qtd_min_atacado %}
+                        <div class="text-success mt-1" style="font-size:.68rem;">&#10003; Desconto aplicado</div>
+                        {% else %}
+                        <div class="text-muted mt-1" style="font-size:.68rem;">Sem opção de atacado</div>
+                        {% endif %}
                         <div class="text-primary mt-1" style="font-size:.68rem;">Toque para ver detalhes</div>
                     </div>
                     <div class="text-end flex-shrink-0">
+                        <div class="text-muted" style="font-size:.8rem;">{{ item.quantidade|floatformat:0 }} un</div>
                         <div class="fw-semibold">R$ {{ item.preco_total|floatformat:2 }}</div>
                         {% if compra.status == 'ativa' %}
                         <form method="post" action="{% url 'src:remover_item' compra.id item.id %}" onclick="event.stopPropagation()">
@@ -186,6 +203,7 @@
                                 data-preco-atacado="{{ item.preco_atacado|default:'' }}"
                                 data-qtd-min="{{ item.qtd_min_atacado|default:'' }}"
                                 data-ocr="{{ item.ocr_texto|default:''|escapejs }}"
+                                data-edit-url="{% url 'src:editar_quantidade' compra_id=compra.id item_id=item.id %}"
                                 data-bs-toggle="modal" data-bs-target="#modalItemDetalhe">
                                 <td>
                                     {% if item.foto %}
@@ -385,7 +403,15 @@
                 </div>
 
             </div>
-            <div class="modal-footer border-0 pt-0">
+            <div class="modal-footer border-0 pt-0 flex-column align-items-stretch gap-2">
+                {% if compra.status == 'ativa' %}
+                <form id="mid-edit-qtd-form" method="post" action="" class="d-flex align-items-center gap-2" onclick="event.stopPropagation()">
+                    {% csrf_token %}
+                    <label class="text-muted small mb-0 flex-shrink-0">Quantidade:</label>
+                    <input type="number" id="mid-edit-qtd" name="nova_quantidade" min="0.01" step="any" class="form-control form-control-sm" style="max-width:90px;">
+                    <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+                </form>
+                {% endif %}
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
             </div>
         </div>
@@ -431,7 +457,7 @@
             // Preços e qtde
             document.getElementById('mid-peso').textContent      = peso  || '—';
             document.getElementById('mid-preco-unit').textContent = 'R$ ' + precoUnit;
-            document.getElementById('mid-qtde').textContent       = qtde;
+            document.getElementById('mid-qtde').textContent       = parseFloat(qtde) + ' un';
             document.getElementById('mid-total').textContent      = 'R$ ' + precoTotal;
 
             // Atacado
@@ -449,6 +475,13 @@
                 document.getElementById('mid-ocr-wrap').style.display = '';
             } else {
                 document.getElementById('mid-ocr-wrap').style.display = 'none';
+            }
+
+            // Form de edição de quantidade
+            const editForm = document.getElementById('mid-edit-qtd-form');
+            if (editForm) {
+                editForm.action = el.dataset.editUrl;
+                document.getElementById('mid-edit-qtd').value = parseFloat(qtde);
             }
         });
     </script>

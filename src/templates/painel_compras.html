@@ -99,7 +99,7 @@
                 <!-- Linha 1: ID + status + total -->
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <div class="d-flex align-items-center gap-2">
-                        <span class="fw-semibold">{% if compra.nome %}{{ compra.nome }}{% else %}#{{ compra.id }}{% endif %}</span>
+                        <span class="fw-semibold">{% if compra.nome %}{{ compra.nome }}{% else %}Feira sem nome{% endif %}</span>
                         {% if compra.status == 'ativa' %}
                         <span class="badge text-bg-success" style="font-size:.65rem;">Ativa</span>
                         {% else %}
@@ -128,7 +128,7 @@
                     <button type="button" class="btn btn-sm btn-outline-danger flex-fill"
                         data-bs-toggle="modal" data-bs-target="#modalApagar"
                         data-url="{% url 'src:excluir_compra' compra.id %}"
-                        data-id="{{ compra.id }}">Apagar</button>
+                        data-nome="{% if compra.nome %}{{ compra.nome }}{% else %}Feira sem nome{% endif %}">Apagar</button>
                     {% endif %}
                 </div>
             </div>
@@ -159,7 +159,7 @@
                     <tbody>
                         {% for compra in compras %}
                         <tr data-href="{% url 'src:lista_compra' compra.id %}">
-                            <td class="fw-semibold">{% if compra.nome %}{{ compra.nome }}<br><span class="text-muted fw-normal" style="font-size:.75rem;">#{{ compra.id }}</span>{% else %}#{{ compra.id }}{% endif %}</td>
+                            <td class="fw-semibold">{% if compra.nome %}{{ compra.nome }}{% else %}Feira sem nome{% endif %}</td>
                             <td class="text-muted small">
                                 <time class="js-relative-time" datetime="{{ compra.data|date:'c' }}"
                                       title="{{ compra.data|date:'d/m/Y H:i' }}">{{ compra.data|date:"d/m/Y H:i" }}</time>
@@ -183,7 +183,7 @@
                                     data-bs-toggle="modal"
                                     data-bs-target="#modalApagar"
                                     data-url="{% url 'src:excluir_compra' compra.id %}"
-                                    data-id="{{ compra.id }}">
+                                    data-nome="{% if compra.nome %}{{ compra.nome }}{% else %}Feira sem nome{% endif %}">
                                     Apagar
                                 </button>
                                 {% endif %}
@@ -280,7 +280,7 @@
         document.getElementById('modalApagar').addEventListener('show.bs.modal', function (e) {
             const btn = e.relatedTarget;
             document.getElementById('formApagar').action = btn.dataset.url;
-            document.getElementById('modalApagarNome').textContent = 'Feira #' + btn.dataset.id;
+            document.getElementById('modalApagarNome').textContent = btn.dataset.nome;
         });
 
         // Datas relativas

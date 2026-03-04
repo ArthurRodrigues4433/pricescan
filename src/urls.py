@@ -5,6 +5,7 @@ from .views import (
     painel_compras,
     lista_compra,
     remover_item,
+    editar_quantidade,
     finalizar_compra,
     excluir_compra,
     register,
@@ -28,6 +29,11 @@ urlpatterns = [
         "compras/<int:compra_id>/remover-item/<int:item_id>/",
         remover_item,
         name="remover_item",
+    ),
+    path(
+        "compras/<int:compra_id>/itens/<int:item_id>/editar-quantidade/",
+        editar_quantidade,
+        name="editar_quantidade",
     ),
     path(
         "compras/<int:compra_id>/finalizar/", finalizar_compra, name="finalizar_compra"

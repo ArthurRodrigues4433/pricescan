@@ -36,3 +36,12 @@ class ItemCompra(models.Model):
             if self.quantidade >= self.qtd_min_atacado:
                 return self.preco_atacado * self.quantidade
         return self.preco_unitario * self.quantidade
+
+    def falta_para_atacado(self):
+        if (
+            self.preco_atacado
+            and self.qtd_min_atacado
+            and self.quantidade < self.qtd_min_atacado
+        ):
+            return self.qtd_min_atacado - self.quantidade
+        return 0

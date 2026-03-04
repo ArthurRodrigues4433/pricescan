@@ -5,10 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Confirmar Produto — PriceScan</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <style>
+        /* Layout sem rolagem de página — o corpo é uma coluna flex fixa */
+        html, body { height: 100dvh; overflow: hidden; }
+        body { display: flex; flex-direction: column; }
+        .cp-nav   { flex-shrink: 0; }
+        .cp-body  { flex: 1 1 0; overflow-y: auto; overflow-x: hidden; }
+        .cp-footer {
+            flex-shrink: 0;
+            background: #fff;
+            border-top: 1px solid #dee2e6;
+            padding: .75rem 1rem;
+        }
+        /* Foto menor em telas bem pequenas para caber mais conteúdo */
+        @media (max-height: 700px) {
+            .cp-foto { max-height: 120px !important; }
+        }
+    </style>
 </head>
 <body class="bg-white">
 
-    <nav class="navbar border-bottom bg-white px-3 px-md-4" style="height:56px;">
+    <nav class="cp-nav navbar border-bottom bg-white px-3 px-md-4" style="height:56px;">
         <a class="navbar-brand fw-bold text-dark fs-6" href="{% url 'src:painel_compras' %}">PriceScan</a>
         <div class="ms-auto d-flex align-items-center gap-3">
             <span class="text-muted small d-none d-sm-inline">{{ request.user.username }}</span>
@@ -19,7 +36,8 @@
         </div>
     </nav>
 
-    <main class="container py-4 py-md-5">
+    <div class="cp-body">
+    <main class="container py-3 py-md-5">
         <div class="row justify-content-center">
             <div class="col-12 col-md-8 col-lg-6 col-xl-5">
 
@@ -27,29 +45,37 @@
                     <a href="{% url 'src:escanear_cartaz' compra.id %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 mb-3">
                         &#8592; Tirar nova foto
                     </a>
-                    <h1 class="h4 fw-semibold text-dark mb-1">Etapa 1 — Confirmar dados</h1>
-                    <p class="text-muted small mb-0">Verifique se o sistema leu os dados corretamente. Corrija o que for necessário.</p>
+                    <h1 class="h4 fw-semibold text-dark mb-1">Etapa 1 &mdash; Conferir dados do cartaz</h1>
+                    <p class="text-muted small mb-0">O sistema leu os dados abaixo a partir da foto. <strong class="text-dark">Compare com a imagem</strong> e corrija apenas o que estiver errado.</p>
                 </div>
 
-                <!-- Debug OCR -->
-                {% if texto_ocr %}
-                <details class="mb-4">
-                    <summary class="text-primary small" style="cursor:pointer; list-style:none;">🔍 Texto lido pelo OCR <span style="font-size:.75em;">(clique para ver/ocultar)</span></summary>
-                    <pre class="mt-2 p-2 rounded border bg-light small" style="white-space:pre-wrap;word-break:break-word;">{{ texto_ocr }}</pre>
-                </details>
-                {% endif %}
+                <!-- Aviso de ação esperada -->
+                <div class="alert alert-warning d-flex gap-2 align-items-start py-2 px-3 mb-4" role="alert" style="font-size:.85rem;">
+                    <span style="font-size:1.1rem;">&#128270;</span>
+                    <div>
+                        <strong>Olhe para a foto do cartaz</strong> e verifique se nome e preços batem com o que está escrito. Se o OCR errou algum dado, corrija aqui antes de continuar.
+                    </div>
+                </div>
 
                 <!-- Miniatura da foto -->
                 {% if foto_url %}
                 <div class="mb-4 text-center">
                     <img src="{{ foto_url }}" alt="Cartaz escaneado"
-                         class="img-fluid rounded border"
+                         class="img-fluid rounded border shadow-sm cp-foto"
                          style="max-height:180px; object-fit:contain;">
-                    <p class="text-muted small mt-1 mb-0">Foto escaneada</p>
+                    <p class="text-muted small mt-1 mb-0">&#128247; Foto do cartaz &mdash; use como referência para conferir os dados abaixo</p>
                 </div>
                 {% endif %}
 
-                <form method="post" action="{% url 'src:confirmar_produto' compra.id %}" enctype="multipart/form-data" novalidate>
+                <!-- Debug OCR -->
+                {% if texto_ocr %}
+                <details class="mb-4">
+                    <summary class="text-primary small" style="cursor:pointer; list-style:none;">&#128269; Texto bruto lido pelo OCR <span style="font-size:.75em;">(clique para ver/ocultar)</span></summary>
+                    <pre class="mt-2 p-2 rounded border bg-light small" style="white-space:pre-wrap;word-break:break-word;">{{ texto_ocr }}</pre>
+                </details>
+                {% endif %}
+
+                <form id="confirmar-form" method="post" action="{% url 'src:confirmar_produto' compra.id %}" enctype="multipart/form-data" novalidate>
                     {% csrf_token %}
 
                     <!-- Campo oculto para repassar o caminho da imagem temporária -->
@@ -64,8 +90,7 @@
                                value="{{ form.nome.value|default:'' }}"
                                placeholder="Ex: Arroz Tio João 5kg"
                                class="form-control{% if form.nome.errors %} is-invalid{% endif %}"
-                               required>
-                        {% if form.nome.errors %}<div class="invalid-feedback">{{ form.nome.errors|join:", " }}</div>{% endif %}
+                               required>                        <div class="form-text">Confira se o nome bate com a etiqueta do produto na foto.</div>                        {% if form.nome.errors %}<div class="invalid-feedback">{{ form.nome.errors|join:", " }}</div>{% endif %}
                     </div>
 
                     <!-- Peso / Volume -->
@@ -80,7 +105,7 @@
 
                     <!-- Preço unitário -->
                     <div class="mb-3">
-                        <label for="{{ form.preco_unitario.id_for_label }}" class="form-label fw-semibold small">{{ form.preco_unitario.label }}</label>
+                        <label for="{{ form.preco_unitario.id_for_label }}" class="form-label fw-semibold small">{{ form.preco_unitario.label }} <span class="text-muted fw-normal">(varejo)</span></label>
                         <div class="input-group">
                             <span class="input-group-text text-muted small">R$</span>
                             <input type="number" name="preco_unitario" id="{{ form.preco_unitario.id_for_label }}"
@@ -90,11 +115,12 @@
                                    required>
                             {% if form.preco_unitario.errors %}<div class="invalid-feedback">{{ form.preco_unitario.errors|join:", " }}</div>{% endif %}
                         </div>
+                        <div class="form-text">Verifique o preço unitário (varejo) no cartaz.</div>
                     </div>
 
                     <!-- Separador atacado -->
                     <hr class="my-3">
-                    <p class="small text-muted mb-1">Regra de atacado — preencha se o cartaz tiver preço por quantidade</p>
+                    <p class="small text-muted mb-1">Preço de atacado &mdash; preencha <strong>somente se o cartaz mostrar um preço diferente por quantidade mínima</strong></p>
                     {% if sem_desconto_atacado %}
                     <p class="small text-danger mb-3">&#9888; O OCR identificou que o preço de atacado é igual ao unitário — este produto não tem desconto por quantidade.</p>
                     {% endif %}
@@ -125,14 +151,43 @@
                         </div>
                     </div>
 
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-dark btn-lg">Confirmar dados →</button>
-                    </div>
+                    <div class="mb-4"><!-- espaço inferior para não colidir com o rodapé fixo --></div>
                 </form>
 
             </div>
         </div>
     </main>
+    </div><!-- /cp-body -->
+
+    <!-- Rodapé fixo: checkbox + botão -->
+    <div class="cp-footer">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-12 col-md-8 col-lg-6 col-xl-5">
+                    <div class="form-check mb-1">
+                        <input class="form-check-input" type="checkbox" id="chk-conferi"
+                               onchange="this.classList.remove('is-invalid');">
+                        <label class="form-check-label small fw-semibold" for="chk-conferi">
+                            Conferi a foto e os dados acima estão corretos
+                        </label>
+                        <div class="invalid-feedback d-block" id="erro-conferi" style="display:none!important;">&#9888; Marque esta caixa antes de confirmar.</div>
+                    </div>
+                    <button id="btn-confirmar" form="confirmar-form" type="button"
+                            class="btn btn-dark btn-lg w-100 mt-1"
+                            onclick="
+                              var chk = document.getElementById('chk-conferi');
+                              if (!chk.checked) {
+                                chk.classList.add('is-invalid');
+                                document.getElementById('erro-conferi').style.removeProperty('display');
+                                chk.scrollIntoView({behavior:'smooth', block:'center'});
+                              } else {
+                                document.getElementById('confirmar-form').submit();
+                              }
+                            ">Confirmar dados →</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
