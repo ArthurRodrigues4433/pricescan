@@ -240,6 +240,29 @@ def finalizar_compra(request, compra_id):
     return redirect("src:painel_compras")
 
 
+@login_required
+def editar_orcamento(request, compra_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    compra = get_object_or_404(
+        Compra, id=compra_id, usuario=request.user, status="ativa"
+    )
+    orcamento_str = request.POST.get("orcamento", "").strip()
+    if orcamento_str:
+        try:
+            orcamento = Decimal(orcamento_str.replace(",", "."))
+            if orcamento <= 0:
+                raise ValueError
+            compra.orcamento = orcamento
+        except (InvalidOperation, ValueError):
+            messages.error(request, "Valor de orçamento inválido.")
+            return redirect("src:lista_compra", compra_id=compra_id)
+    else:
+        compra.orcamento = None
+    compra.save(update_fields=["orcamento"])
+    return redirect("src:lista_compra", compra_id=compra_id)
+
+
 # ---------------------------------------------------------------------------
 # Views do módulo OCR
 # ---------------------------------------------------------------------------
@@ -260,7 +283,9 @@ def escanear_cartaz(request, compra_id):
 
             # Salva temporariamente
             os.makedirs(_TMP_DIR, exist_ok=True)
-            nome_tmp = f"tmp_{request.user.id}_{compra_id}_{os.path.basename(foto.name)}"
+            nome_tmp = (
+                f"tmp_{request.user.id}_{compra_id}_{os.path.basename(foto.name)}"
+            )
             caminho_tmp = os.path.join(_TMP_DIR, nome_tmp)
             with open(caminho_tmp, "wb") as f:
                 for chunk in foto.chunks():

@@ -75,8 +75,18 @@
                 </div>
                 {% if compra.orcamento %}
                 <div>
-                    <p class="text-muted small mb-0">Orçamento</p>
+                    <p class="text-muted small mb-0 d-flex align-items-center gap-1">
+                        Orçamento
+                        {% if compra.status == 'ativa' %}
+                        <button type="button" class="btn btn-link p-0 text-muted" style="font-size:.7rem;line-height:1;vertical-align:middle;" data-bs-toggle="modal" data-bs-target="#modalEditarOrcamento" data-orcamento="{{ compra.orcamento }}" title="Editar orçamento">✏️</button>
+                        {% endif %}
+                    </p>
                     <p class="fw-semibold mb-0 {% if orcamento_info.excedido %}text-danger{% elif orcamento_info.alerta %}text-warning{% else %}text-success{% endif %}">R$ {{ compra.orcamento|floatformat:2 }}</p>
+                </div>
+                {% elif compra.status == 'ativa' %}
+                <div>
+                    <p class="text-muted small mb-0">Orçamento</p>
+                    <button type="button" class="btn btn-link p-0" style="font-size:.82rem;" data-bs-toggle="modal" data-bs-target="#modalEditarOrcamento" data-orcamento="">+ Definir</button>
                 </div>
                 {% endif %}
             </div>
@@ -486,6 +496,39 @@
                 editForm.action = el.dataset.editUrl;
                 document.getElementById('mid-edit-qtd').value = parseFloat(qtde);
             }
+        });
+    </script>
+
+    <!-- Modal Editar Orçamento -->
+    <div class="modal fade" id="modalEditarOrcamento" tabindex="-1" aria-labelledby="modalEditarOrcamentoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" action="{% url 'src:editar_orcamento' compra.id %}">
+                    {% csrf_token %}
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="modal-title fw-semibold" id="modalEditarOrcamentoLabel">Orçamento da feira</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label for="inputOrcamento" class="form-label small text-muted">Valor (R$)</label>
+                        <input type="number" id="inputOrcamento" name="orcamento"
+                               class="form-control" step="0.01" min="0.01" placeholder="Ex: 200.00">
+                        <div class="form-text">Deixe em branco para remover o orçamento.</div>
+                    </div>
+                    <div class="modal-footer border-0 pt-0">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-dark btn-sm">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('modalEditarOrcamento').addEventListener('show.bs.modal', function (e) {
+            const btn = e.relatedTarget;
+            const val = btn ? btn.dataset.orcamento : '';
+            document.getElementById('inputOrcamento').value = val ? parseFloat(val).toFixed(2) : '';
         });
     </script>
 </body>
