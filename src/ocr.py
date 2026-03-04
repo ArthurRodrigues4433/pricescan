@@ -211,16 +211,22 @@ def parsear_cartaz(texto: str) -> dict:
                 _candidatos_nome.append(trimmed)
 
     if _candidatos_nome:
-        # Palavras que indicam que a linha NÃO é nome de produto
+        # Palavras e padrões que indicam que a linha NÃO é nome de produto
         _RE_LINHA_NAO_NOME = re.compile(
-            r"\bvarejo\b|\batacado\b|\bpromoção\b|\bpromocao\b|\bpromoção\b"
-            r"|\bunidade\b|\bunid\b|\ba partir\b|\bapartir\b"
-            r"|\bplu\b|\br\$|\brs\b"
-            r"|\bpreco\b|\bpreço\b"  # linhas como "PRECO POR LITRO."
-            r"|atacad"  # nomes de redes (ATACADÃO, ATACADISTA, ATACAREJO)
-            r"|\blimitado\b"  # "LIMITADO 5 KG POR CLIENTE"
-            r"|\boferta\b"  # "OFERTA" como label
-            r"|\bpor\s+cliente\b",  # "POR CLIENTE"
+            r"\bvarejo\b|\batacado\b|\bpromo[cç][aã]o\b|\boferta\b|\bdesconto\b|\bimperd[ií]vel\b|\bpromo\b"
+            r"|\bunidade\b|\bunid\b|\ba partir\b|\bapartir\b|\bleve\b|\bacima\b|\bcliente\b|\blimitado\b"
+            r"|\bplu\b|\br\$|\brs\b|\bpre[cç]o\b|\bpre[cç]o\b|\bpre[cç]os\b|\bpre[cç]os?\b"
+            r"|atacad|atacarejo|atacad[aã]o|atacadista|supermercado|mercado|hipermercado|comercial|distribuidor|distribuidora"
+            r"|\bpor\s+cliente\b|\bpor\s+kg\b|\bpor\s+litro\b|\bpor\s+pacote\b|\bpor\s+unidade\b"
+            r"|\bpre[cç]o\s+por\b|\bpre[cç]o\s+equivalente\b|\bequivalente\b|\bequiv\b|\bequ[iíl]v\b|eq[uü][iíl]v"
+            r"|\bsite\b|\bwww\b|\.com\b|\.br\b|instagram|facebook|@|#|telefone|zap|whatsapp"
+            r"|\bpromo[cç][aã]o\b|\boferta\b|\bdesconto\b|\bimperd[ií]vel\b|\bpre[cç]o\s+baixo\b|\bpre[cç]o\s+especial\b"
+            r"|\baproveite\b|\bsomente\b|\bhoje\b|\bvalido\b|\bvalida\b|\bdata\b|\bvalidade\b|\bconfira\b|\bcompare\b"
+            r"|\bparcelamos\b|\bcart[ãa]o\b|\bcrédito\b|\bdébito\b|\bvisa\b|\bmaster\b|\belite\b|\belo\b"
+            r"|\bpre[cç]o\s+total\b|\bpre[cç]o\s+final\b|\bpre[cç]o\s+unit[áa]rio\b|\bpre[cç]o\s+atacado\b"
+            r"|\bkg\b|\bg\b|\bml\b|\bl\b|\blt\b|\bpacote\b|\bcx\b|\bcaixa\b|\bfardo\b|\bdúzia\b"
+            r"|\bpor\s+kg\b|\bpor\s+litro\b|\bpor\s+pacote\b|\bpor\s+unidade\b"
+            r"|\d{4,}\.[0-9]{2}|\d{6,}|\d%",  # códigos, datas, percentuais
             re.IGNORECASE,
         )
         _candidatos_nome = [
