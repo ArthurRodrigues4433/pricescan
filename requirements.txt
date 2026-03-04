@@ -1,5 +1,10 @@
 Django==6.0.2
 Pillow==12.1.1
 pytesseract==0.3.13
-opencv-python==4.13.0.92
+opencv-python-headless==4.13.0.92
 python-dotenv==1.2.2
+gunicorn==23.0.0
+psycopg2-binary==2.9.10
+django-storages[s3]==1.14.4
+boto3==1.36.24
+django-ratelimit==4.1.0

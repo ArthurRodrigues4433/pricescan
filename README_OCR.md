@@ -191,3 +191,5 @@ pip install -r requirements.txt
 Binário externo: **Tesseract OCR** com pacote de idioma `por`  
 → https://github.com/UB-Mannheim/tesseract/wiki (Windows)  
 → `sudo apt install tesseract-ocr tesseract-ocr-por` (Linux)
+
+> No deploy com Docker, o Tesseract e o pacote `por` já são instalados automaticamente pela imagem — veja o `Dockerfile`.

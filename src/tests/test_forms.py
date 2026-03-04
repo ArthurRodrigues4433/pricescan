@@ -7,6 +7,7 @@ from src.forms import RegisterForm, ItemCompraForm
 class RegisterFormTest(TestCase):
     def _dados(self, **kwargs):
         base = {
+            "nome": "Usuário Teste",
             "email": "novo@teste.com",
             "password1": "SenhaSegura123!",
             "password2": "SenhaSegura123!",

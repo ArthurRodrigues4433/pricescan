@@ -14,6 +14,10 @@ db.sqlite3
 
 # Uploads de mídia (fotos dos produtos e temporários do OCR)
 media/
+produtos/
+
+# Static files coletados
+staticfiles/
 
 # Configurações do VSCode
 .vscode/
@@ -25,6 +29,17 @@ Thumbs.db
 # Variáveis de ambiente
 .env
 *.env
+!.env.example
 
 # Logs
 *.log
+
+# Imagens de teste do OCR (pesadas, só para dev local)
+src/tests/testes_cartaz/
+testes_cartaz/
+
+# Script de teste manual do OCR
+testar_cartazes.py
+
+# Docker volumes locais
+postgres_data/

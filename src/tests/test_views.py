@@ -312,6 +312,7 @@ class RegisterViewTest(TestCase):
         resp = self.client.post(
             reverse("src:register"),
             {
+                "nome": "Usuário Teste",
                 "email": "novo@teste.com",
                 "password1": "SenhaSegura123!",
                 "password2": "SenhaSegura123!",
@@ -325,6 +326,7 @@ class RegisterViewTest(TestCase):
         self.client.post(
             reverse("src:register"),
             {
+                "nome": "Usuário Teste",
                 "email": "dup@t.com",
                 "password1": "SenhaSegura123!",
                 "password2": "SenhaSegura123!",
@@ -418,7 +420,7 @@ class EscanearCartazViewTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertTemplateUsed(resp, "escanear_cartaz.html")
         mensagens = [str(m) for m in resp.wsgi_request._messages]  # type: ignore
-        self.assertTrue(any("OCR" in m for m in mensagens))
+        self.assertTrue(any("processar" in m.lower() for m in mensagens))
 
     @patch("src.views.ocr_module.checar_qualidade", return_value=(True, ""))
     @patch("src.views.ocr_module.extrair_texto", return_value="ARROZ 5KG\n5,99")

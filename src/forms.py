@@ -86,12 +86,22 @@ class ItemCompraForm(forms.ModelForm):
 
 
 class EscanearCartazForm(forms.Form):
+    MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10 MB
+
     foto = forms.ImageField(
         label="Foto do cartaz",
         widget=forms.ClearableFileInput(
             attrs={"accept": "image/*", "capture": "environment"}
         ),
     )
+
+    def clean_foto(self):
+        foto = self.cleaned_data.get("foto")
+        if foto and foto.size > self.MAX_UPLOAD_SIZE:
+            raise forms.ValidationError(
+                f"A imagem não pode exceder {self.MAX_UPLOAD_SIZE // (1024 * 1024)} MB."
+            )
+        return foto
 
 
 class ConfirmarProdutoForm(forms.Form):

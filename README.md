@@ -20,6 +20,9 @@ Sistema web para controle de compras de feira com leitura automática de cartaze
   - Itens com foto, preço total por item (respeita regra de atacado) e total geral
   - Clicar em qualquer item abre modal de detalhes com foto do cartaz, preços e texto bruto do OCR — útil para conferência no caixa
 - **Remover item**: remove produto da feira ativa
+- **Editar quantidade**: altera a quantidade de um item já adicionado
+- **Editar orçamento**: renomeia a feira
+- **Perfil**: página do usuário logado
 - **Finalizar feira**: confirmação via modal antes de mudar status para `finalizada`, bloqueando edições
 - **Excluir feira**: remove permanentemente feiras finalizadas com confirmação via modal
 - **Navegação**: botão "Voltar" visível em todas as páginas internas
@@ -28,15 +31,21 @@ Sistema web para controle de compras de feira com leitura automática de cartaze
 
 ## Tecnologias
 
-| Camada               | Tecnologia               |
-|----------------------|--------------------------|
-| Backend              | Django 5+                |
-| Banco                | SQLite (desenvolvimento) |
-| Frontend             | Bootstrap 5.3.3 (CDN)   |
-| OCR                  | Tesseract + pytesseract  |
-| Visão computacional  | OpenCV (`opencv-python`) |
-| Imagens              | Pillow + ImageField      |
-| Auth                 | Django built-in auth     |
+| Camada               | Tecnologia                          |
+|----------------------|-------------------------------------|
+| Backend              | Django 6.0.2                        |
+| Banco (produção)     | PostgreSQL 16                       |
+| Banco (dev local)    | SQLite (fallback automático)        |
+| Frontend             | Bootstrap 5.3.3 (CDN)              |
+| OCR                  | Tesseract + pytesseract             |
+| Visão computacional  | OpenCV (`opencv-python-headless`)   |
+| Imagens              | Pillow + ImageField                 |
+| Armazenamento        | DigitalOcean Spaces (S3-compatible) |
+| Auth                 | Django built-in auth                |
+| Rate limiting        | django-ratelimit                    |
+| Servidor WSGI        | Gunicorn                            |
+| Proxy reverso        | Nginx                               |
+| Containerização      | Docker + Docker Compose             |
 
 ## Modelos
 
@@ -45,6 +54,7 @@ Compra
   usuario           FK → User
   data              DateTimeField (auto_now_add)
   status            CharField: "ativa" | "finalizada"
+  nome_orcamento    CharField(200)
   total()           → soma dos preco_total() dos itens
 
 ItemCompra
@@ -64,32 +74,37 @@ ItemCompra
 
 ## Rotas
 
-| Método   | URL                                                | View                | Descrição                            |
-|----------|----------------------------------------------------|---------------------|--------------------------------------|
-| GET      | `/`                                                | `painel_compras`    | Painel de feiras                     |
-| POST     | `/compras/nova/`                                   | `criar_compra`      | Cria nova feira                      |
-| GET/POST | `/compras/<id>/adicionar/`                         | `adicionar_produto` | Adiciona item manualmente            |
-| GET      | `/compras/<id>/`                                   | `lista_compra`      | Detalhe da feira                     |
-| POST     | `/compras/<id>/remover-item/<item_id>/`            | `remover_item`      | Remove um item                       |
-| POST     | `/compras/<id>/finalizar/`                         | `finalizar_compra`  | Finaliza a feira                     |
-| POST     | `/compras/<id>/excluir/`                           | `excluir_compra`    | Exclui feira finalizada              |
-| GET/POST | `/compras/<id>/escanear/`                          | `escanear_cartaz`   | Upload e análise do cartaz           |
-| POST     | `/compras/<id>/confirmar/`                         | `confirmar_produto` | Etapa 1: revisar dados do OCR        |
-| POST     | `/compras/<id>/quantidade/`                        | `informar_quantidade`| Etapa 2: informar quantidade e salvar|
-| GET/POST | `/accounts/register/`                              | `register`          | Cadastro                             |
-| GET/POST | `/accounts/login/`                                 | *(Django auth)*     | Login                                |
+| Método   | URL                                                | View                  | Descrição                            |
+|----------|----------------------------------------------------|---------------------- |--------------------------------------|
+| GET      | `/`                                                | `painel_compras`      | Painel de feiras                     |
+| POST     | `/compras/nova/`                                   | `criar_compra`        | Cria nova feira                      |
+| GET/POST | `/compras/<id>/adicionar/`                         | `adicionar_produto`   | Adiciona item manualmente            |
+| GET      | `/compras/<id>/`                                   | `lista_compra`        | Detalhe da feira                     |
+| POST     | `/compras/<id>/remover-item/<item_id>/`            | `remover_item`        | Remove um item                       |
+| POST     | `/compras/<id>/itens/<item_id>/editar-quantidade/` | `editar_quantidade`   | Altera quantidade de um item         |
+| POST     | `/compras/<id>/editar-orcamento/`                  | `editar_orcamento`    | Renomeia a feira                     |
+| POST     | `/compras/<id>/finalizar/`                         | `finalizar_compra`    | Finaliza a feira                     |
+| POST     | `/compras/<id>/excluir/`                           | `excluir_compra`      | Exclui feira finalizada              |
+| GET/POST | `/compras/<id>/escanear/`                          | `escanear_cartaz`     | Upload e análise do cartaz           |
+| POST     | `/compras/<id>/confirmar/`                         | `confirmar_produto`   | Etapa 1: revisar dados do OCR        |
+| POST     | `/compras/<id>/quantidade/`                        | `informar_quantidade` | Etapa 2: informar quantidade e salvar|
+| GET/POST | `/accounts/register/`                              | `register`            | Cadastro                             |
+| GET/POST | `/accounts/login/`                                 | *(Django auth)*       | Login                                |
+| GET      | `/perfil/`                                         | `perfil`              | Página do perfil do usuário          |
 
 ## Estrutura do projeto
 
 ```
 PriceScan/
 ├── manage.py
-├── db.sqlite3
-├── testar_cartazes.py          ← script manual de inspeção do OCR
-├── testes_cartaz/              ← fotos reais de cartazes (não vai para produção)
-├── media/
-│   ├── produtos/               ← uploads das fotos dos itens
-│   └── tmp/                    ← imagens temporárias do OCR
+├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
+├── entrypoint.sh
+├── nginx.conf
+├── .env.example
+├── .gitignore
+├── .dockerignore
 ├── pricescan/
 │   ├── settings.py
 │   ├── urls.py
@@ -101,7 +116,7 @@ PriceScan/
     ├── forms.py
     ├── admin.py
     ├── backends.py
-    ├── ocr.py                  ← módulo OCR
+    ├── ocr.py                  ← módulo OCR (ver README_OCR.md)
     ├── migrations/
     ├── static/
     │   └── css/style.css
@@ -112,6 +127,7 @@ PriceScan/
     │   ├── escanear_cartaz.html
     │   ├── confirmar_produto.html
     │   ├── informar_quantidade.html
+    │   ├── perfil.html
     │   └── registration/
     │       ├── login.html
     │       └── register.html
@@ -123,7 +139,7 @@ PriceScan/
         └── test_ocr.py
 ```
 
-## Instalação
+## Instalação (desenvolvimento local)
 
 ### 1. Instalar o Tesseract (binário do sistema)
 
@@ -154,12 +170,12 @@ source .venv/bin/activate     # Linux/macOS
 # Instalar dependências Python
 pip install -r requirements.txt
 
-# Configurar variáveis de ambiente
+# Copiar e preencher variáveis de ambiente
 copy .env.example .env        # Windows
 cp .env.example .env          # Linux/macOS
-# Edite o .env e preencha SECRET_KEY e TESSERACT_CMD
+# Edite o .env — preencha SECRET_KEY e TESSERACT_CMD (Windows)
 
-# Aplicar migrações
+# Aplicar migrações (usa SQLite automaticamente se POSTGRES_DB não estiver definido)
 python manage.py migrate
 
 # Criar usuário administrador
@@ -171,33 +187,98 @@ python manage.py runserver
 
 Acesse em: http://127.0.0.1:8000/
 
-### 3. Configurar variáveis de ambiente
+### 3. Variáveis de ambiente
+
+Veja o arquivo `.env.example` para a lista completa. As principais para desenvolvimento:
+
+| Variável | Obrigatória | Descrição |
+|----------|-------------|-----------|
+| `SECRET_KEY` | Sim | Chave secreta do Django |
+| `DEBUG` | Não | `true` para dev (padrão), `false` para produção |
+| `TESSERACT_CMD` | Windows | Caminho do executável do Tesseract |
+| `TESSERACT_LANG` | Não | Idioma OCR (padrão: `por`) |
+
+> Sem `POSTGRES_DB`, o sistema usa SQLite automaticamente.  
+> Sem `DO_SPACES_BUCKET`, uploads ficam em memória (sem persistência em dev).
+
+## Deploy com Docker (produção)
+
+### Pré-requisitos
+
+- Docker e Docker Compose instalados no servidor
+- Conta na DigitalOcean com Spaces configurado (ou outro S3-compatible)
+
+### 1. Configurar variáveis de ambiente
 
 ```bash
-copy .env.example .env   # Windows
-cp .env.example .env     # Linux/macOS
+cp .env.example .env
 ```
 
-Edite o `.env` gerado:
+Edite o `.env` com valores de produção:
 
 ```env
-SECRET_KEY=<gere uma chave em https://djecrety.ir/>
-DEBUG=True
-TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe   # somente Windows
-TESSERACT_LANG=por
+SECRET_KEY=<chave-segura-gerada>
+DEBUG=false
+ALLOWED_HOSTS=seu-dominio.com
+CSRF_TRUSTED_ORIGINS=https://seu-dominio.com
+
+POSTGRES_DB=pricescan
+POSTGRES_USER=pricescan
+POSTGRES_PASSWORD=<senha-forte>
+POSTGRES_HOST=db
+
+DO_SPACES_KEY=<sua-key>
+DO_SPACES_SECRET=<seu-secret>
+DO_SPACES_BUCKET=<nome-do-bucket>
+DO_SPACES_ENDPOINT=https://sfo3.digitaloceanspaces.com
 ```
 
-Em Linux/macOS, `TESSERACT_CMD` pode ficar em branco (o binário já está no PATH).
-
-### 4. Testar o OCR (opcional)
-
-Coloque fotos de cartazes na pasta `testes_cartaz/` e execute:
+### 2. Subir os containers
 
 ```bash
-python testar_cartazes.py
+docker compose up -d --build
 ```
 
-O script processa cada imagem e exibe o texto bruto lido e os campos extraídos.
+Isso inicia três serviços:
+
+| Serviço | Descrição |
+|---------|-----------|
+| `db` | PostgreSQL 16 com healthcheck |
+| `web` | Django + Gunicorn (porta 8000 interna) |
+| `nginx` | Proxy reverso na porta 80, serve arquivos estáticos |
+
+O `entrypoint.sh` aguarda o banco ficar disponível, roda as migrações e inicia o Gunicorn automaticamente.
+
+### 3. Criar superusuário (primeira vez)
+
+```bash
+docker compose exec web python manage.py createsuperuser
+```
+
+### 4. Logs e manutenção
+
+```bash
+docker compose logs -f web       # logs da aplicação
+docker compose restart web       # reiniciar sem rebuild
+docker compose down              # parar tudo
+docker compose up -d --build     # rebuild após alterações
+```
+
+## Segurança
+
+- **Headers de segurança** (produção): HSTS, cookies seguros, CSP, X-Frame-Options
+- **Rate limiting**: registro (10/min por IP), escanear cartaz (20/min por usuário)
+- **Upload**: máximo 10 MB por imagem (validado no form e no Nginx)
+- **Armazenamento**: fotos enviadas para DigitalOcean Spaces — nada fica no filesystem local
+- **Credenciais**: todas em `.env`, nunca commitadas (`.gitignore` protege)
+
+## Testes
+
+```bash
+python manage.py test
+```
+
+122 testes cobrindo models, views, forms, backends e OCR.
 
 ## Dependências Python
 

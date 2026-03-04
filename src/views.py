@@ -1,6 +1,9 @@
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 import os
+import logging
+import tempfile
+import uuid
 from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth.decorators import login_required
@@ -8,7 +11,8 @@ from django.contrib.auth.forms import (
     UserCreationForm,
 )  # noqa: F401 (mantido por compatibilidade)
 from django.contrib import messages
-from django.http import HttpResponseNotAllowed
+from django.http import HttpResponseNotAllowed, HttpResponse
+from django_ratelimit.decorators import ratelimit
 from django.shortcuts import render, redirect, get_object_or_404
 from .forms import (
     ItemCompraForm,
@@ -20,10 +24,15 @@ from .forms import (
 from .models import Compra, ItemCompra
 from . import ocr as ocr_module
 
+logger = logging.getLogger(__name__)
 
+
+@ratelimit(key="ip", rate="10/m", method="POST", block=False)
 def register(request):
     if request.user.is_authenticated:
         return redirect("src:painel_compras")
+    if getattr(request, "limited", False):
+        return HttpResponse("Muitas tentativas. Aguarde um momento.", status=429)
     if request.method == "POST":
         form = RegisterForm(request.POST)
         if form.is_valid():
@@ -267,9 +276,10 @@ def editar_orcamento(request, compra_id):
 # Views do módulo OCR
 # ---------------------------------------------------------------------------
 
-_TMP_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "media", "tmp")
+_TMP_DIR = tempfile.gettempdir()
 
 
+@ratelimit(key="user", rate="20/m", method="POST", block=False)
 @login_required
 def escanear_cartaz(request, compra_id):
     compra = get_object_or_404(
@@ -277,15 +287,20 @@ def escanear_cartaz(request, compra_id):
     )
 
     if request.method == "POST":
+        if getattr(request, "limited", False):
+            messages.error(request, "Muitos uploads seguidos. Aguarde um momento.")
+            return render(
+                request,
+                "escanear_cartaz.html",
+                {"form": EscanearCartazForm(), "compra": compra},
+            )
         form = EscanearCartazForm(request.POST, request.FILES)
         if form.is_valid():
             foto = request.FILES["foto"]
 
-            # Salva temporariamente
-            os.makedirs(_TMP_DIR, exist_ok=True)
-            nome_tmp = (
-                f"tmp_{request.user.id}_{compra_id}_{os.path.basename(foto.name)}"
-            )
+            # Salva temporariamente no diretório de temp do sistema
+            ext = os.path.splitext(foto.name)[1] or ".jpg"
+            nome_tmp = f"pricescan_{uuid.uuid4().hex}{ext}"
             caminho_tmp = os.path.join(_TMP_DIR, nome_tmp)
             with open(caminho_tmp, "wb") as f:
                 for chunk in foto.chunks():
@@ -310,9 +325,10 @@ def escanear_cartaz(request, compra_id):
                 texto = ocr_module.extrair_texto(caminho_tmp)
             except Exception as e:
                 os.remove(caminho_tmp)
+                logger.exception("Erro no OCR para user=%s", request.user.id)
                 messages.error(
                     request,
-                    f"Erro no OCR: {e}. Verifique se o Tesseract está instalado em C:\\Program Files\\Tesseract-OCR\\tesseract.exe",
+                    "Erro ao processar a imagem. Verifique se a foto está legível e tente novamente.",
                 )
                 return render(
                     request,
@@ -346,7 +362,7 @@ def escanear_cartaz(request, compra_id):
                     "form": confirm_form,
                     "compra": compra,
                     "caminho_tmp": caminho_tmp,
-                    "foto_url": f"/media/tmp/{nome_tmp}",
+                    "foto_url": "",
                     "texto_ocr": texto,
                     "sem_desconto_atacado": dados.get("sem_desconto_atacado", False),
                 },
@@ -500,15 +516,13 @@ def informar_quantidade(request, compra_id):
                 },
             )
 
-    # Salva a foto definitivamente em media/produtos/
+    # Salva a foto definitivamente via storage (DigitalOcean Spaces ou local)
     foto_field = None
     if caminho_tmp and os.path.exists(caminho_tmp):
         from django.core.files import File
 
         with open(caminho_tmp, "rb") as f:
-            nome_arquivo = os.path.basename(caminho_tmp).replace(
-                f"tmp_{request.user.id}_{compra_id}_", ""
-            )
+            nome_arquivo = f"{uuid.uuid4().hex}{os.path.splitext(caminho_tmp)[1]}"
             foto_field = File(f, name=nome_arquivo)
             item = ItemCompra(
                 compra=compra,
