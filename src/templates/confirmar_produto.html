@@ -24,9 +24,9 @@
             <div class="col-12 col-md-8 col-lg-6 col-xl-5">
 
                 <div class="mb-4">
-                    <p class="mb-1">
-                        <a href="{% url 'src:escanear_cartaz' compra.id %}" class="text-muted text-decoration-none small">← Tirar nova foto · Feira #{{ compra.id }}</a>
-                    </p>
+                    <a href="{% url 'src:escanear_cartaz' compra.id %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 mb-3">
+                        &#8592; Tirar nova foto
+                    </a>
                     <h1 class="h4 fw-semibold text-dark mb-1">Etapa 1 — Confirmar dados</h1>
                     <p class="text-muted small mb-0">Verifique se o sistema leu os dados corretamente. Corrija o que for necessário.</p>
                 </div>
@@ -34,7 +34,7 @@
                 <!-- Debug OCR -->
                 {% if texto_ocr %}
                 <details class="mb-4">
-                    <summary class="text-muted small" style="cursor:pointer;">🔍 Texto lido pelo OCR (clique para ver)</summary>
+                    <summary class="text-primary small" style="cursor:pointer; list-style:none;">🔍 Texto lido pelo OCR <span style="font-size:.75em;">(clique para ver/ocultar)</span></summary>
                     <pre class="mt-2 p-2 rounded border bg-light small" style="white-space:pre-wrap;word-break:break-word;">{{ texto_ocr }}</pre>
                 </details>
                 {% endif %}

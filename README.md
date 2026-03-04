@@ -5,19 +5,26 @@ Sistema web para controle de compras de feira com leitura automática de cartaze
 ## Funcionalidades
 
 - **Autenticação**: cadastro e login com e-mail (Django auth nativo)
-- **Painel de feiras**: lista todas as feiras do usuário com status, data e total
-- **Criar feira**: abre nova feira com status `ativa`
+- **Painel de feiras**:
+  - Cards de resumo: total de feiras, feiras ativas e valor em aberto
+  - Lista de feiras com status, contagem de itens e data relativa ("há 2 horas")
+  - Cards (mobile) e linhas da tabela (desktop) clicáveis — navegam diretamente para a feira
+- **Criar feira**: abre nova feira via modal de confirmação — bloqueado se já houver uma feira ativa (deve finalizar antes)
 - **Escanear cartaz** *(fluxo OCR)*:
   1. Upload da foto do cartaz → validação de qualidade (resolução, brilho, desfoque)
   2. OCR em 3 passes (Tesseract PSM 6 / 3 / 11) com pré-processamento via OpenCV
   3. **Etapa 1** — confirmar dados: nome, peso/volume, preço unitário, regra de atacado
   4. **Etapa 2** — informar quantidade com preview do total em tempo real
 - **Adicionar produto manualmente**: formulário clássico sem OCR
-- **Lista da compra**: itens com foto, preço total por item (respeita regra de atacado) e total geral
+- **Lista da compra**:
+  - Itens com foto, preço total por item (respeita regra de atacado) e total geral
+  - Clicar em qualquer item abre modal de detalhes com foto do cartaz, preços e texto bruto do OCR — útil para conferência no caixa
 - **Remover item**: remove produto da feira ativa
-- **Finalizar feira**: muda status para `finalizada`, bloqueando edições
+- **Finalizar feira**: confirmação via modal antes de mudar status para `finalizada`, bloqueando edições
 - **Excluir feira**: remove permanentemente feiras finalizadas com confirmação via modal
-- **Layout responsivo**: mobile-first com Bootstrap 5
+- **Navegação**: botão "Voltar" visível em todas as páginas internas
+- **Regra de negócio**: não é possível criar nova feira enquanto houver uma ativa
+- **Layout responsivo**: mobile-first com Bootstrap 5.3.3
 
 ## Tecnologias
 
@@ -78,8 +85,8 @@ ItemCompra
 PriceScan/
 ├── manage.py
 ├── db.sqlite3
-├── testar_cartazes.py          ← script de teste do OCR (desenvolvimento)
-├── testes_cartaz/              ← imagens de teste (não vai para produção)
+├── testar_cartazes.py          ← script manual de inspeção do OCR
+├── testes_cartaz/              ← fotos reais de cartazes (não vai para produção)
 ├── media/
 │   ├── produtos/               ← uploads das fotos dos itens
 │   └── tmp/                    ← imagens temporárias do OCR
@@ -96,16 +103,24 @@ PriceScan/
     ├── backends.py
     ├── ocr.py                  ← módulo OCR
     ├── migrations/
-    └── templates/
-        ├── painel_compras.html
-        ├── lista_compra.html
-        ├── adicionar_produto.html
-        ├── escanear_cartaz.html
-        ├── confirmar_produto.html
-        ├── informar_quantidade.html
-        └── registration/
-            ├── login.html
-            └── register.html
+    ├── static/
+    │   └── css/style.css
+    ├── templates/
+    │   ├── painel_compras.html
+    │   ├── lista_compra.html
+    │   ├── adicionar_produto.html
+    │   ├── escanear_cartaz.html
+    │   ├── confirmar_produto.html
+    │   ├── informar_quantidade.html
+    │   └── registration/
+    │       ├── login.html
+    │       └── register.html
+    └── tests/
+        ├── test_models.py
+        ├── test_views.py
+        ├── test_forms.py
+        ├── test_backends.py
+        └── test_ocr.py
 ```
 
 ## Instalação
@@ -197,6 +212,27 @@ python-dotenv==1.2.2
 > Instale com `pip install -r requirements.txt`.
 
 > **Nota de produção:** `MEDIA_URL` só serve arquivos com `DEBUG = True`. Para produção, configure armazenamento de arquivos adequado (ex: whitenoise, AWS S3). O `db.sqlite3` deve ser substituído por PostgreSQL ou MySQL.
+
+## Testes
+
+A suíte cobre 98% do código com 101 testes distribuídos em 5 módulos:
+
+| Arquivo              | O que cobre                                                       |
+|----------------------|-------------------------------------------------------------------|
+| `test_models.py`     | `preco_total()` e `total()` — lógica de atacado                   |
+| `test_views.py`      | Todas as views (autenticação, CRUD de feiras, fluxo OCR completo) |
+| `test_forms.py`      | `RegisterForm` e `ItemCompraForm` — validações e campos           |
+| `test_backends.py`   | `EmailBackend` — login por e-mail, senha errada, usuário inativo  |
+| `test_ocr.py`        | Parser OCR, validação de qualidade e integração com fotos reais   |
+
+```bash
+# Rodar todos os testes
+python manage.py test src.tests
+
+# Com relatório de cobertura
+coverage run --source=src manage.py test src.tests
+coverage report -m
+```
 
 ## Licença
 

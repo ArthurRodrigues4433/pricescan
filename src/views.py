@@ -37,14 +37,36 @@ def register(request):
 
 @login_required
 def painel_compras(request):
-    compras = Compra.objects.filter(usuario=request.user).order_by("-data")
-    return render(request, "painel_compras.html", {"compras": compras})
+    from django.db.models import Count
+
+    base_qs = Compra.objects.filter(usuario=request.user)
+
+    compras = base_qs.annotate(num_itens=Count("itens")).order_by("-data")
+
+    total_feiras = base_qs.count()
+    feiras_ativas = base_qs.filter(status="ativa").count()
+    total_em_aberto = sum(c.total() for c in compras if c.status == "ativa")
+
+    return render(
+        request,
+        "painel_compras.html",
+        {
+            "compras": compras,
+            "total_feiras": total_feiras,
+            "feiras_ativas": feiras_ativas,
+            "total_em_aberto": total_em_aberto,
+        },
+    )
 
 
 @login_required
 def criar_compra(request):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
+    # Impede criar nova feira enquanto houver uma ativa
+    if Compra.objects.filter(usuario=request.user, status="ativa").exists():
+        messages.error(request, "Finalize a feira ativa antes de criar uma nova.")
+        return redirect("src:painel_compras")
     nova_compra = Compra.objects.create(usuario=request.user, status="ativa")
     return redirect("src:lista_compra", compra_id=nova_compra.id)  # type: ignore
 

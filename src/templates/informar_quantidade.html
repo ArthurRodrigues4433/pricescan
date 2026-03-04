@@ -24,9 +24,9 @@
             <div class="col-12 col-md-8 col-lg-6 col-xl-5">
 
                 <div class="mb-4">
-                    <p class="mb-1">
-                        <a href="{% url 'src:escanear_cartaz' compra.id %}" class="text-muted text-decoration-none small">← Tirar nova foto · Feira #{{ compra.id }}</a>
-                    </p>
+                    <a href="{% url 'src:escanear_cartaz' compra.id %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 mb-3">
+                        &#8592; Tirar nova foto
+                    </a>
                     <h1 class="h4 fw-semibold text-dark mb-1">Etapa 2 — Quantidade</h1>
                     <p class="text-muted small mb-0">Dados do produto confirmados. Informe quantas unidades você vai levar.</p>
                 </div>

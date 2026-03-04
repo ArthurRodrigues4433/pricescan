@@ -76,9 +76,9 @@
             <div class="col-12 col-md-8 col-lg-6 col-xl-5">
 
                 <div class="mb-4">
-                    <p class="mb-1">
-                        <a href="{% url 'src:lista_compra' compra.id %}" class="text-muted text-decoration-none small">← Feira #{{ compra.id }}</a>
-                    </p>
+                    <a href="{% url 'src:lista_compra' compra.id %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 mb-3">
+                        &#8592; Feira #{{ compra.id }}
+                    </a>
                     <h1 class="h4 fw-semibold text-dark mb-1">Escanear cartaz</h1>
                     <p class="text-muted small mb-0">Enquadre o cartaz dentro do quadro. Quando ficar <strong class="text-success">verde</strong>, tire a foto.</p>
                 </div>

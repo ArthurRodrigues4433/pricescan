@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Feira #{{ compra.id }} â€” PriceScan</title>
+    <title>Feira #{{ compra.id }} - PriceScan</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <style>
         @media (max-width: 767.98px) {
@@ -20,7 +20,7 @@
 
 <div class="lc-page">
 
-    <!-- Navbar mi­nima -->
+    <!-- Navbar mínima -->
     <nav class="navbar border-bottom bg-white px-3 px-md-4" style="height:56px;">
         <a class="navbar-brand fw-bold text-dark fs-6" href="{% url 'src:painel_compras' %}">PriceScan</a>
         <div class="ms-auto d-flex align-items-center gap-3">
@@ -40,9 +40,9 @@
             <!-- Contexto + cabeçalho -->
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 mb-4 mb-md-5">
                 <div>
-                    <p class="mb-1">
-                        <a href="{% url 'src:painel_compras' %}" class="text-muted text-decoration-none small"> Minhas feiras</a>
-                    </p>
+                    <a href="{% url 'src:painel_compras' %}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1 mb-3">
+                        &#8592; Minhas Feiras
+                    </a>
                     <h1 class="h4 fw-semibold text-dark mb-1">
                         Feira #{{ compra.id }}
                         {% if compra.status == 'ativa' %}
@@ -80,10 +80,21 @@
             <!-- Mobile: lista de itens -->
             <div class="d-md-none">
                 {% for item in itens %}
-                <div class="d-flex gap-3 border-bottom py-3 align-items-center">
+                <div class="d-flex gap-3 border-bottom py-3 align-items-center"
+                    style="cursor:pointer;"
+                    data-nome="{{ item.nome|escapejs }}"
+                    data-foto="{% if item.foto %}{{ item.foto.url }}{% endif %}"
+                    data-peso="{{ item.peso_volume|default:''|escapejs }}"
+                    data-preco-unit="{{ item.preco_unitario }}"
+                    data-qtde="{{ item.quantidade }}"
+                    data-preco-total="{{ item.preco_total|floatformat:2 }}"
+                    data-preco-atacado="{{ item.preco_atacado|default:'' }}"
+                    data-qtd-min="{{ item.qtd_min_atacado|default:'' }}"
+                    data-ocr="{{ item.ocr_texto|default:''|escapejs }}"
+                    data-bs-toggle="modal" data-bs-target="#modalItemDetalhe">
                     <div class="flex-shrink-0">
                         {% if item.foto %}
-                            <img src="{{ item.foto.url }}" alt="{{ item.nome }}" class="rounded" style="width:48px; height:48px; object-fit:cover;">
+                            <img src="{{ item.foto.url }}" alt="{{ item.nome }}" class="rounded border" style="width:48px; height:48px; object-fit:cover;">
                         {% else %}
                             <div class="rounded bg-light border d-flex align-items-center justify-content-center text-muted" style="width:48px; height:48px; font-size:.65rem;">Foto</div>
                         {% endif %}
@@ -91,17 +102,18 @@
                     <div class="flex-grow-1" style="min-width:0;">
                         <div class="fw-semibold text-truncate">{{ item.nome }}</div>
                         <div class="text-muted small">
-                            {{ item.quantidade }} Un/Kg — R$ {{ item.preco_unitario }}
-                            {% if item.peso_volume %}<span class="ms-1 text-muted">· {{ item.peso_volume }}</span>{% endif %}
+                            {{ item.quantidade }} Un/Kg &mdash; R$ {{ item.preco_unitario }}
+                            {% if item.peso_volume %}<span class="ms-1 text-muted">&middot; {{ item.peso_volume }}</span>{% endif %}
                             {% if item.preco_atacado and item.qtd_min_atacado %}
                             <span class="ms-1 badge text-bg-success" style="font-size:.6rem;">Atacado</span>
                             {% endif %}
                         </div>
+                        <div class="text-primary mt-1" style="font-size:.68rem;">Toque para ver detalhes</div>
                     </div>
                     <div class="text-end flex-shrink-0">
                         <div class="fw-semibold">R$ {{ item.preco_total|floatformat:2 }}</div>
                         {% if compra.status == 'ativa' %}
-                        <form method="post" action="{% url 'src:remover_item' compra.id item.id %}">
+                        <form method="post" action="{% url 'src:remover_item' compra.id item.id %}" onclick="event.stopPropagation()">
                             {% csrf_token %}
                             <button type="submit" class="btn btn-sm btn-link text-danger p-0 mt-1" style="font-size:.75rem;">Remover</button>
                         </form>
@@ -136,15 +148,28 @@
                         </thead>
                         <tbody>
                             {% for item in itens %}
-                            <tr>
+                            <tr style="cursor:pointer;"
+                                data-nome="{{ item.nome|escapejs }}"
+                                data-foto="{% if item.foto %}{{ item.foto.url }}{% endif %}"
+                                data-peso="{{ item.peso_volume|default:''|escapejs }}"
+                                data-preco-unit="{{ item.preco_unitario }}"
+                                data-qtde="{{ item.quantidade }}"
+                                data-preco-total="{{ item.preco_total|floatformat:2 }}"
+                                data-preco-atacado="{{ item.preco_atacado|default:'' }}"
+                                data-qtd-min="{{ item.qtd_min_atacado|default:'' }}"
+                                data-ocr="{{ item.ocr_texto|default:''|escapejs }}"
+                                data-bs-toggle="modal" data-bs-target="#modalItemDetalhe">
                                 <td>
                                     {% if item.foto %}
-                                        <img src="{{ item.foto.url }}" alt="{{ item.nome }}" class="rounded" style="width:44px; height:44px; object-fit:cover;">
+                                        <img src="{{ item.foto.url }}" alt="{{ item.nome }}" class="rounded border" style="width:44px; height:44px; object-fit:cover;">
                                     {% else %}
                                         <div class="rounded bg-light border d-flex align-items-center justify-content-center text-muted" style="width:44px; height:44px; font-size:.65rem;">Foto</div>
                                     {% endif %}
                                 </td>
-                                <td class="fw-semibold">{{ item.nome }}</td>
+                                <td class="fw-semibold">
+                                    {{ item.nome }}
+                                    <div class="text-primary" style="font-size:.68rem; font-weight:400;">Clique para ver detalhes</div>
+                                </td>
                                 <td class="text-muted">{{ item.peso_volume|default:"—" }}</td>
                                 <td class="text-muted">{{ item.quantidade }}</td>
                                 <td class="text-muted">R$ {{ item.preco_unitario }}</td>
@@ -158,7 +183,7 @@
                                 </td>
                                 <td class="text-end fw-semibold">R$ {{ item.preco_total|floatformat:2 }}</td>
                                 {% if compra.status == 'ativa' %}
-                                <td class="text-end">
+                                <td class="text-end" onclick="event.stopPropagation()">
                                     <form method="post" action="{% url 'src:remover_item' compra.id item.id %}" class="d-inline">
                                         {% csrf_token %}
                                         <button type="submit" class="btn btn-sm btn-link text-danger text-decoration-none p-0">Remover</button>
@@ -193,12 +218,10 @@
             <!-- Desktop: final -->
             {% if compra.status == 'ativa' %}
             <div class="d-none d-md-block mt-4 pt-2 border-top">
-                <form method="post" action="{% url 'src:finalizar_compra' compra.id %}">
-                    {% csrf_token %}
-                    <div class="d-flex justify-content-end">
-                        <button type="submit" class="btn btn-outline-dark">Finalizar feira</button>
-                    </div>
-                </form>
+                <div class="d-flex justify-content-end">
+                    <button type="button" class="btn btn-outline-dark"
+                        data-bs-toggle="modal" data-bs-target="#modalFinalizarFeira">Finalizar feira</button>
+                </div>
             </div>
             {% endif %}
 
@@ -213,15 +236,146 @@
             <span class="text-muted small">Total geral</span>
             <span class="fw-bold">R$ {{ total_geral|floatformat:2 }}</span>
         </div>
-        <form method="post" action="{% url 'src:finalizar_compra' compra.id %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-dark w-100">Finalizar feira</button>
-        </form>
+        <button type="button" class="btn btn-dark w-100"
+            data-bs-toggle="modal" data-bs-target="#modalFinalizarFeira">Finalizar feira</button>
     </div>
     {% endif %}
 
 </div><!-- /lc-page -->
 
+<!-- Modal: confirmar finalizar feira -->
+<div class="modal fade" id="modalFinalizarFeira" tabindex="-1" aria-labelledby="modalFinalizarFeiraLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-sm">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-semibold" id="modalFinalizarFeiraLabel">Finalizar Feira #{{ compra.id }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-1">Tem certeza que deseja finalizar esta feira?</p>
+                <p class="text-muted small mb-0">Após finalizar, não será possível adicionar ou remover produtos.</p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <form method="post" action="{% url 'src:finalizar_compra' compra.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-dark btn-sm px-4">Sim, finalizar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: detalhes do produto para conferência no caixa -->
+<div class="modal fade" id="modalItemDetalhe" tabindex="-1" aria-labelledby="modalItemDetalheLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-semibold fs-6" id="modalItemDetalheLabel"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body pt-2">
+
+                <!-- Foto do cartaz -->
+                <div id="mid-foto-wrap" class="text-center mb-3" style="display:none;">
+                    <img id="mid-foto" src="" alt="Cartaz" class="img-fluid rounded border" style="max-height:240px; object-fit:contain;">
+                    <p class="text-muted small mt-1 mb-0">Foto do cartaz</p>
+                </div>
+                <div id="mid-sem-foto" class="text-center py-3 text-muted small mb-3" style="display:none;">
+                    <div class="rounded bg-light border d-inline-flex align-items-center justify-content-center" style="width:72px;height:72px;font-size:.7rem;">Sem foto</div>
+                </div>
+
+                <!-- Detalhes -->
+                <ul class="list-group list-group-flush small mb-3">
+                    <li class="list-group-item px-0 d-flex justify-content-between">
+                        <span class="text-muted">Peso / Volume</span>
+                        <span id="mid-peso" class="fw-semibold"></span>
+                    </li>
+                    <li class="list-group-item px-0 d-flex justify-content-between">
+                        <span class="text-muted">Preço unitário</span>
+                        <span id="mid-preco-unit" class="fw-semibold"></span>
+                    </li>
+                    <li class="list-group-item px-0 d-flex justify-content-between">
+                        <span class="text-muted">Quantidade</span>
+                        <span id="mid-qtde" class="fw-semibold"></span>
+                    </li>
+                    <li id="mid-atacado-row" class="list-group-item px-0 d-flex justify-content-between">
+                        <span class="text-muted">Atacado</span>
+                        <span id="mid-atacado" class="fw-semibold text-success"></span>
+                    </li>
+                    <li class="list-group-item px-0 d-flex justify-content-between">
+                        <span class="text-muted fw-semibold">Total cobrado</span>
+                        <span id="mid-total" class="fw-bold fs-6"></span>
+                    </li>
+                </ul>
+
+                <!-- OCR raw text -->
+                <div id="mid-ocr-wrap" style="display:none;">
+                    <details>
+                        <summary class="text-primary small" style="cursor:pointer; list-style:none;">🔍 Texto original do cartaz (OCR)</summary>
+                        <pre id="mid-ocr-texto" class="mt-2 p-2 rounded border bg-light small" style="white-space:pre-wrap;word-break:break-word;max-height:160px;overflow-y:auto;"></pre>
+                    </details>
+                </div>
+
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script>
+        // Popula modal de detalhe ao clicar em um item
+        document.getElementById('modalItemDetalhe').addEventListener('show.bs.modal', function (e) {
+            const el = e.relatedTarget;
+            const nome        = el.dataset.nome;
+            const foto        = el.dataset.foto;
+            const peso        = el.dataset.peso;
+            const precoUnit   = el.dataset.precoUnit;
+            const qtde        = el.dataset.qtde;
+            const precoTotal  = el.dataset.precoTotal;
+            const precoAtac   = el.dataset.precoAtacado;
+            const qtdMin      = el.dataset.qtdMin;
+            const ocr         = el.dataset.ocr;
+
+            // Título
+            document.getElementById('modalItemDetalheLabel').textContent = nome;
+
+            // Foto
+            if (foto) {
+                document.getElementById('mid-foto').src = foto;
+                document.getElementById('mid-foto-wrap').style.display = '';
+                document.getElementById('mid-sem-foto').style.display  = 'none';
+            } else {
+                document.getElementById('mid-foto-wrap').style.display = 'none';
+                document.getElementById('mid-sem-foto').style.display  = '';
+            }
+
+            // Preços e qtde
+            document.getElementById('mid-peso').textContent      = peso  || '—';
+            document.getElementById('mid-preco-unit').textContent = 'R$ ' + precoUnit;
+            document.getElementById('mid-qtde').textContent       = qtde;
+            document.getElementById('mid-total').textContent      = 'R$ ' + precoTotal;
+
+            // Atacado
+            const atacRow = document.getElementById('mid-atacado-row');
+            if (precoAtac && qtdMin) {
+                document.getElementById('mid-atacado').textContent = 'R$ ' + precoAtac + ' (≥' + qtdMin + ' un.)';
+                atacRow.style.display = '';
+            } else {
+                atacRow.style.display = 'none';
+            }
+
+            // OCR
+            if (ocr) {
+                document.getElementById('mid-ocr-texto').textContent = ocr;
+                document.getElementById('mid-ocr-wrap').style.display = '';
+            } else {
+                document.getElementById('mid-ocr-wrap').style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>
