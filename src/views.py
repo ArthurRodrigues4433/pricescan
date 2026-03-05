@@ -1,5 +1,7 @@
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
+import base64
+import mimetypes
 import os
 import logging
 import tempfile
@@ -345,6 +347,17 @@ def escanear_cartaz(request, compra_id):
                     return None
                 return s.replace(".", "").replace(",", ".")
 
+            # Gerar data URI para exibir a foto no template
+            foto_url = ""
+            try:
+                mime, _ = mimetypes.guess_type(caminho_tmp)
+                mime = mime or "image/jpeg"
+                with open(caminho_tmp, "rb") as img_f:
+                    foto_b64 = base64.b64encode(img_f.read()).decode("ascii")
+                foto_url = f"data:{mime};base64,{foto_b64}"
+            except Exception:
+                pass
+
             confirm_form = ConfirmarProdutoForm(
                 initial={
                     "nome": dados["nome"],
@@ -362,7 +375,7 @@ def escanear_cartaz(request, compra_id):
                     "form": confirm_form,
                     "compra": compra,
                     "caminho_tmp": caminho_tmp,
-                    "foto_url": "",
+                    "foto_url": foto_url,
                     "texto_ocr": texto,
                     "sem_desconto_atacado": dados.get("sem_desconto_atacado", False),
                 },

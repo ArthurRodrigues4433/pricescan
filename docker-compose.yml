@@ -4,6 +4,8 @@ services:
     restart: unless-stopped
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-pricescan}
       POSTGRES_USER: ${POSTGRES_USER:-pricescan}
@@ -23,6 +25,7 @@ services:
     env_file: .env
     environment:
       POSTGRES_HOST: db
+      TESSERACT_CMD: ""
     volumes:
       - static_files:/app/staticfiles
     expose:

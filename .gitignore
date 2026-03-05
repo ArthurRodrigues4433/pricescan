@@ -41,5 +41,8 @@ testes_cartaz/
 # Script de teste manual do OCR
 testar_cartazes.py
 
+# Checklist de deploy (local only)
+DEPLOY.md
+
 # Docker volumes locais
 postgres_data/

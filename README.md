@@ -272,48 +272,51 @@ docker compose up -d --build     # rebuild após alterações
 - **Armazenamento**: fotos enviadas para DigitalOcean Spaces — nada fica no filesystem local
 - **Credenciais**: todas em `.env`, nunca commitadas (`.gitignore` protege)
 
+## Pós-deploy — o que falta configurar
+
+### Domínio + DNS
+- Registrar um domínio e apontar o **A record** para o IP do servidor
+- Atualizar `ALLOWED_HOSTS` e `CSRF_TRUSTED_ORIGINS` no `.env`
+- Reiniciar: `docker compose restart web`
+
+### HTTPS / SSL
+- **Opção A**: Certbot direto no servidor:
+  ```bash
+  sudo apt install certbot python3-certbot-nginx
+  sudo certbot --nginx -d seu-dominio.com
+  ```
+- **Opção B**: Load balancer da DigitalOcean com SSL termination (mais simples)
+- Depois de ativar HTTPS, as configs de segurança do Django (HSTS, secure cookies, SSL redirect) ativam automaticamente com `DEBUG=false`
+
+### Criar superusuário
+```bash
+docker compose exec web python manage.py createsuperuser
+```
+
+### Opcional: Email SMTP
+Hoje usa console backend (emails só aparecem nos logs). Para envio real (reset de senha etc.), configurar no `.env`:
+```env
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=seu@email.com
+EMAIL_HOST_PASSWORD=sua-app-password
+```
+
+### Opcional: Redis
+Hoje usa cache em memória local. Para cache distribuído + rate limiting mais robusto, adicionar Redis no `docker-compose.yml` e no `.env`:
+```env
+REDIS_URL=redis://redis:6379/1
+```
+
 ## Testes
 
 ```bash
-python manage.py test
+python manage.py test src.tests
 ```
 
 122 testes cobrindo models, views, forms, backends e OCR.
-
-## Dependências Python
-
-```
-Django==6.0.2
-Pillow==12.1.1
-pytesseract==0.3.13
-opencv-python==4.13.0.92
-python-dotenv==1.2.2
-```
-
-> Instale com `pip install -r requirements.txt`.
-
-> **Nota de produção:** `MEDIA_URL` só serve arquivos com `DEBUG = True`. Para produção, configure armazenamento de arquivos adequado (ex: whitenoise, AWS S3). O `db.sqlite3` deve ser substituído por PostgreSQL ou MySQL.
-
-## Testes
-
-A suíte cobre 98% do código com 101 testes distribuídos em 5 módulos:
-
-| Arquivo              | O que cobre                                                       |
-|----------------------|-------------------------------------------------------------------|
-| `test_models.py`     | `preco_total()` e `total()` — lógica de atacado                   |
-| `test_views.py`      | Todas as views (autenticação, CRUD de feiras, fluxo OCR completo) |
-| `test_forms.py`      | `RegisterForm` e `ItemCompraForm` — validações e campos           |
-| `test_backends.py`   | `EmailBackend` — login por e-mail, senha errada, usuário inativo  |
-| `test_ocr.py`        | Parser OCR, validação de qualidade e integração com fotos reais   |
-
-```bash
-# Rodar todos os testes
-python manage.py test src.tests
-
-# Com relatório de cobertura
-coverage run --source=src manage.py test src.tests
-coverage report -m
-```
 
 ## Licença
 
